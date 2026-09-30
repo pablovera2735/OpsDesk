@@ -1,0 +1,17 @@
+<?php
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+
+
+Route::get('/status', function () {
+    return response()->json([
+        'status' => 'ok',
+        'application' => 'OpsDesk API',
+        'version' => '1.0'
+    ]);
+});
+
+Route::get('/user', function (Request $request) {
+    return $request->user();
+})->middleware('auth:sanctum');
