@@ -12,9 +12,21 @@ class TicketController extends Controller
 {
     /**
      * Listar tickets.
+     *
+     * Admin y técnicos pueden consultar todos.
+     * Los usuarios normales solo sus propios tickets.
      */
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
+        $roleSlug = $user?->role?->slug;
+
+        if (!in_array($roleSlug, ['admin', 'technician', 'user'], true)) {
+            return response()->json([
+                'message' => 'No tienes un rol válido para consultar tickets.',
+            ], 403);
+        }
+
         $query = Ticket::with([
             'category',
             'creator',
@@ -22,6 +34,17 @@ class TicketController extends Controller
             'asset',
         ]);
 
+        /*
+         * Los usuarios normales solo pueden
+         * consultar sus propios tickets.
+         */
+        if ($roleSlug === 'user') {
+            $query->where('created_by', $user->id);
+        }
+
+        /*
+         * Filtros.
+         */
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
@@ -47,16 +70,70 @@ class TicketController extends Controller
 
     /**
      * Mostrar un ticket.
+     *
+     * Los usuarios normales solo pueden ver sus propios tickets.
+     * Admin y técnicos pueden consultar cualquier ticket.
      */
-    public function show(Ticket $ticket): JsonResponse
+    public function show(Request $request, Ticket $ticket): JsonResponse
     {
+        $user = $request->user();
+
+        $roleSlug = $user?->role?->slug;
+
+        /*
+         * Un usuario normal no puede consultar
+         * tickets que no le pertenecen.
+         */
+        if (
+            $roleSlug === 'user'
+            && $ticket->created_by !== $user->id
+        ) {
+            return response()->json([
+                'message' => 'No tienes permisos para consultar este ticket.',
+            ], 403);
+        }
+
+        if (!in_array($roleSlug, ['admin', 'technician', 'user'], true)) {
+            return response()->json([
+                'message' => 'No tienes un rol válido para consultar tickets.',
+            ], 403);
+        }
+
+        /*
+         * Los comentarios internos solo son visibles
+         * para administradores y técnicos.
+         */
+        $canSeeInternalComments = in_array(
+            $roleSlug,
+            ['admin', 'technician'],
+            true
+        );
+
         $ticket->load([
             'category',
             'creator',
             'assignedTechnician',
             'asset',
-            'comments.user',
-            'history.user',
+
+            'comments' => function ($query) use ($canSeeInternalComments) {
+                if (!$canSeeInternalComments) {
+                    $query->where('internal', false);
+                }
+
+                $query->with('user');
+            },
+
+            'history' => function ($query) use ($canSeeInternalComments) {
+                if (!$canSeeInternalComments) {
+                    $query->where(function ($history) {
+                        $history
+                            ->where('action', '!=', 'comment_added')
+                            ->orWhere('new_value', '!=', 'internal');
+                    });
+                }
+
+                $query->with('user');
+            },
         ]);
 
         return response()->json([
@@ -68,212 +145,295 @@ class TicketController extends Controller
      * Crear un ticket.
      */
     public function store(Request $request): JsonResponse
-{
-    $validated = $request->validate([
-        'title' => ['required', 'string', 'max:255'],
-        'description' => ['required', 'string'],
-        'priority' => ['required', 'in:low,medium,high,critical'],
-        'category_id' => ['required', 'exists:ticket_categories,id'],
-        'created_by' => ['required', 'exists:users,id'],
-        'assigned_to' => ['nullable', 'exists:users,id'],
-        'asset_id' => ['nullable', 'exists:assets,id'],
-    ]);
+    {
+        $user = $request->user();
 
-    $nextNumber = Ticket::max('id') + 1;
+        /*
+         * IMPORTANTE:
+         * No aceptamos created_by desde el cliente.
+         *
+         * Aunque alguien mande:
+         *
+         * "created_by": 1
+         *
+         * será ignorado y se utilizará siempre
+         * el usuario autenticado.
+         */
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['required', 'string'],
+            'priority' => ['required', 'in:low,medium,high,critical'],
+            'category_id' => ['required', 'exists:ticket_categories,id'],
+            'assigned_to' => ['nullable', 'exists:users,id'],
+            'asset_id' => ['nullable', 'exists:assets,id'],
+        ]);
 
-    $validated['code'] = sprintf(
-        'INC-%s-%06d',
-        now()->year,
-        $nextNumber
-    );
+        /*
+         * El creador SIEMPRE es el usuario autenticado.
+         */
+        $validated['created_by'] = $user->id;
 
-    $validated['status'] = 'open';
+        /*
+         * Generar código del ticket.
+         */
+        $nextNumber = Ticket::max('id') + 1;
 
-    // Registrar fecha de asignación si hay técnico
-    if (!empty($validated['assigned_to'])) {
-        $validated['assigned_at'] = now();
-    }
+        $validated['code'] = sprintf(
+            'INC-%s-%06d',
+            now()->year,
+            $nextNumber
+        );
 
-    $ticket = Ticket::create($validated);
+        /*
+         * Estado inicial.
+         */
+        $validated['status'] = 'open';
 
-    // Historial: ticket creado
-    TicketHistory::create([
-        'ticket_id' => $ticket->id,
-        'user_id' => $ticket->created_by,
-        'action' => 'created',
-        'field' => null,
-        'old_value' => null,
-        'new_value' => 'open',
-    ]);
+        /*
+         * Registrar fecha de asignación
+         * si se ha asignado un técnico.
+         */
+        if (!empty($validated['assigned_to'])) {
+            $validated['assigned_at'] = now();
+        }
 
-    // Historial: técnico asignado
-    if ($ticket->assigned_to) {
+        $ticket = Ticket::create($validated);
+
+        /*
+         * Historial: ticket creado.
+         *
+         * El usuario del historial es el usuario
+         * autenticado, nunca un ID enviado por el cliente.
+         */
         TicketHistory::create([
             'ticket_id' => $ticket->id,
-            'user_id' => $ticket->assigned_to,
-            'action' => 'assigned',
-            'field' => 'assigned_to',
+            'user_id' => $user->id,
+            'action' => 'created',
+            'field' => null,
             'old_value' => null,
-            'new_value' => (string) $ticket->assigned_to,
+            'new_value' => 'open',
         ]);
+
+        /*
+         * Historial: técnico asignado.
+         *
+         * user_id = quién realizó la acción.
+         * new_value = técnico asignado.
+         */
+        if ($ticket->assigned_to) {
+            TicketHistory::create([
+                'ticket_id' => $ticket->id,
+                'user_id' => $user->id,
+                'action' => 'assigned',
+                'field' => 'assigned_to',
+                'old_value' => null,
+                'new_value' => (string) $ticket->assigned_to,
+            ]);
+        }
+
+        $ticket->load([
+            'category',
+            'creator',
+            'assignedTechnician',
+            'asset',
+            'comments.user',
+            'history.user',
+        ]);
+
+        return response()->json([
+            'message' => 'Ticket creado correctamente.',
+            'data' => $ticket,
+        ], 201);
     }
-
-    $ticket->load([
-        'category',
-        'creator',
-        'assignedTechnician',
-        'asset',
-        'comments.user',
-        'history.user',
-    ]);
-
-    return response()->json([
-        'message' => 'Ticket creado correctamente.',
-        'data' => $ticket,
-    ], 201);
-}
 
     /**
      * Actualizar un ticket.
+     *
+     * La ruta ya está protegida para:
+     * admin, technician.
+     *
+     * El usuario que realiza la modificación
+     * se obtiene SIEMPRE del token.
      */
-    public function update(Request $request, Ticket $ticket): JsonResponse
-{
-    $validated = $request->validate([
-        'title' => ['sometimes', 'string', 'max:255'],
-        'description' => ['sometimes', 'string'],
-        'priority' => ['sometimes', 'in:low,medium,high,critical'],
-        'status' => ['sometimes', 'in:open,in_progress,resolved,closed'],
-        'category_id' => ['sometimes', 'exists:ticket_categories,id'],
-        'assigned_to' => ['nullable', 'exists:users,id'],
-        'asset_id' => ['nullable', 'exists:assets,id'],
-        'updated_by' => ['required', 'exists:users,id'],
-    ]);
+    public function update(
+        Request $request,
+        Ticket $ticket
+    ): JsonResponse {
+        $user = $request->user();
 
-    $updatedBy = $validated['updated_by'];
+        $roleSlug = $user?->role?->slug;
 
-    unset($validated['updated_by']);
-
-    /*
-     * Guardamos los valores anteriores
-     * para poder crear el historial.
-     */
-    $oldStatus = $ticket->status;
-    $oldPriority = $ticket->priority;
-    $oldAssignedTo = $ticket->assigned_to;
-
-    /*
-     * Si se asigna un técnico nuevo,
-     * registramos la fecha de asignación.
-     */
-    if (
-        array_key_exists('assigned_to', $validated)
-        && $validated['assigned_to'] !== $oldAssignedTo
-    ) {
-        $validated['assigned_at'] = $validated['assigned_to']
-            ? now()
-            : null;
-    }
-
-    /*
-     * Fechas automáticas según el estado.
-     */
-    if (
-        isset($validated['status'])
-        && $validated['status'] !== $oldStatus
-    ) {
-        if ($validated['status'] === 'resolved') {
-            $validated['resolved_at'] = now();
+        /*
+         * Defensa adicional aunque la ruta ya tenga
+         * RoleMiddleware.
+         */
+        if (!in_array($roleSlug, ['admin', 'technician'], true)) {
+            return response()->json([
+                'message' => 'No tienes permisos para actualizar tickets.',
+            ], 403);
         }
 
-        if ($validated['status'] === 'closed') {
-            $validated['closed_at'] = now();
-        }
+        $validated = $request->validate([
+            'title' => ['sometimes', 'string', 'max:255'],
+            'description' => ['sometimes', 'string'],
+            'priority' => ['sometimes', 'in:low,medium,high,critical'],
+            'status' => ['sometimes', 'in:open,in_progress,resolved,closed'],
+            'category_id' => ['sometimes', 'exists:ticket_categories,id'],
+            'assigned_to' => ['nullable', 'exists:users,id'],
+            'asset_id' => ['nullable', 'exists:assets,id'],
+        ]);
 
+        /*
+         * NO aceptamos updated_by.
+         *
+         * Aunque el cliente mande:
+         *
+         * "updated_by": 1
+         *
+         * no se utilizará.
+         */
+        $updatedBy = $user->id;
+
+        /*
+         * Valores anteriores.
+         */
+        $oldStatus = $ticket->status;
+        $oldPriority = $ticket->priority;
+        $oldAssignedTo = $ticket->assigned_to;
+
+        /*
+         * Si cambia el técnico asignado,
+         * actualizamos assigned_at.
+         */
         if (
-            in_array($validated['status'], ['open', 'in_progress'])
+            array_key_exists('assigned_to', $validated)
+            && $validated['assigned_to'] != $oldAssignedTo
         ) {
-            $validated['resolved_at'] = null;
-            $validated['closed_at'] = null;
+            $validated['assigned_at'] = $validated['assigned_to']
+                ? now()
+                : null;
         }
-    }
 
-    $ticket->update($validated);
+        /*
+         * Fechas automáticas según el estado.
+         */
+        if (
+            isset($validated['status'])
+            && $validated['status'] !== $oldStatus
+        ) {
+            if ($validated['status'] === 'resolved') {
+                $validated['resolved_at'] = now();
+            }
 
-    /*
-     * Historial de cambio de estado.
-     */
-    if (
-        array_key_exists('status', $validated)
-        && $validated['status'] !== $oldStatus
-    ) {
-        TicketHistory::create([
-            'ticket_id' => $ticket->id,
-            'user_id' => $updatedBy,
-            'action' => 'status_changed',
-            'field' => 'status',
-            'old_value' => $oldStatus,
-            'new_value' => $ticket->status,
+            if ($validated['status'] === 'closed') {
+                $validated['closed_at'] = now();
+            }
+
+            /*
+             * Si vuelve a abierto/en progreso,
+             * eliminamos las fechas de resolución/cierre.
+             */
+            if (
+                in_array(
+                    $validated['status'],
+                    ['open', 'in_progress'],
+                    true
+                )
+            ) {
+                $validated['resolved_at'] = null;
+                $validated['closed_at'] = null;
+            }
+        }
+
+        $ticket->update($validated);
+
+        /*
+         * Historial: cambio de estado.
+         */
+        if (
+            array_key_exists('status', $validated)
+            && $validated['status'] !== $oldStatus
+        ) {
+            TicketHistory::create([
+                'ticket_id' => $ticket->id,
+                'user_id' => $updatedBy,
+                'action' => 'status_changed',
+                'field' => 'status',
+                'old_value' => $oldStatus,
+                'new_value' => $ticket->status,
+            ]);
+        }
+
+        /*
+         * Historial: cambio de prioridad.
+         */
+        if (
+            array_key_exists('priority', $validated)
+            && $validated['priority'] !== $oldPriority
+        ) {
+            TicketHistory::create([
+                'ticket_id' => $ticket->id,
+                'user_id' => $updatedBy,
+                'action' => 'priority_changed',
+                'field' => 'priority',
+                'old_value' => $oldPriority,
+                'new_value' => $ticket->priority,
+            ]);
+        }
+
+        /*
+         * Historial: cambio de técnico.
+         */
+        if (
+            array_key_exists('assigned_to', $validated)
+            && $validated['assigned_to'] != $oldAssignedTo
+        ) {
+            TicketHistory::create([
+                'ticket_id' => $ticket->id,
+                'user_id' => $updatedBy,
+                'action' => 'assigned',
+                'field' => 'assigned_to',
+                'old_value' => $oldAssignedTo
+                    ? (string) $oldAssignedTo
+                    : null,
+                'new_value' => $ticket->assigned_to
+                    ? (string) $ticket->assigned_to
+                    : null,
+            ]);
+        }
+
+        $ticket->load([
+            'category',
+            'creator',
+            'assignedTechnician',
+            'asset',
+            'comments.user',
+            'history.user',
+        ]);
+
+        return response()->json([
+            'message' => 'Ticket actualizado correctamente.',
+            'data' => $ticket,
         ]);
     }
-
-    /*
-     * Historial de cambio de prioridad.
-     */
-    if (
-        array_key_exists('priority', $validated)
-        && $validated['priority'] !== $oldPriority
-    ) {
-        TicketHistory::create([
-            'ticket_id' => $ticket->id,
-            'user_id' => $updatedBy,
-            'action' => 'priority_changed',
-            'field' => 'priority',
-            'old_value' => $oldPriority,
-            'new_value' => $ticket->priority,
-        ]);
-    }
-
-    /*
-     * Historial de cambio de técnico.
-     */
-    if (
-        array_key_exists('assigned_to', $validated)
-        && $validated['assigned_to'] != $oldAssignedTo
-    ) {
-        TicketHistory::create([
-            'ticket_id' => $ticket->id,
-            'user_id' => $updatedBy,
-            'action' => 'assigned',
-            'field' => 'assigned_to',
-            'old_value' => $oldAssignedTo
-                ? (string) $oldAssignedTo
-                : null,
-            'new_value' => $ticket->assigned_to
-                ? (string) $ticket->assigned_to
-                : null,
-        ]);
-    }
-
-    $ticket->load([
-        'category',
-        'creator',
-        'assignedTechnician',
-        'asset',
-        'comments.user',
-        'history.user',
-    ]);
-
-    return response()->json([
-        'message' => 'Ticket actualizado correctamente.',
-        'data' => $ticket,
-    ]);
-}
 
     /**
      * Eliminar un ticket.
+     *
+     * La ruta ya está protegida para admin.
      */
-    public function destroy(Ticket $ticket): JsonResponse
-    {
+    public function destroy(
+        Request $request,
+        Ticket $ticket
+    ): JsonResponse {
+        $user = $request->user();
+
+        if ($user?->role?->slug !== 'admin') {
+            return response()->json([
+                'message' => 'No tienes permisos para eliminar tickets.',
+            ], 403);
+        }
+
         $ticket->delete();
 
         return response()->json([
