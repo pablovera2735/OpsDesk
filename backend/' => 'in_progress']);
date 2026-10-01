@@ -1,0 +1,17 @@
+[90m= [39m[34;4mApp\Models\Ticket[39;24m {#8576
+    [34mid[39m: [35m1[39m,
+    [34mcode[39m: [32m"[39m[32mINC-2026-000001[39m[32m"[39m,
+    [34mtitle[39m: [32m"[39m[32mEl portátil no tiene conexión a Internet[39m[32m"[39m,
+    [34mdescription[39m: [32m"[39m[32mEl usuario indica que no puede acceder a Internet desde su portátil.[39m[32m"[39m,
+    [34mpriority[39m: [32m"[39m[32mhigh[39m[32m"[39m,
+    [34mstatus[39m: [32m"[39m[32mopen[39m[32m"[39m,
+    [34mcategory_id[39m: [35m3[39m,
+    [34mcreated_by[39m: [35m3[39m,
+    [34massigned_to[39m: [35m2[39m,
+    [34masset_id[39m: [35m1[39m,
+    [34massigned_at[39m: [36mnull[39m,
+    [34mresolved_at[39m: [36mnull[39m,
+    [34mclosed_at[39m: [36mnull[39m,
+    [34mcreated_at[39m: [32m"[39m[32m2026-10-01 06:30:11[39m[32m"[39m,
+    [34mupdated_at[39m: [32m"[39m[32m2026-10-01 06:30:11[39m[32m"[39m,
+  }
