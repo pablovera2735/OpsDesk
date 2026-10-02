@@ -7,6 +7,7 @@ use App\Models\Ticket;
 use App\Models\TicketHistory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class TicketController extends Controller
 {
@@ -19,6 +20,9 @@ class TicketController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
+
+        Gate::authorize('viewAny', Ticket::class);
+
         $roleSlug = $user?->role?->slug;
 
         if (!in_array($roleSlug, ['admin', 'technician', 'user'], true)) {
@@ -68,36 +72,35 @@ class TicketController extends Controller
         return response()->json($tickets);
     }
 
+
     /**
      * Mostrar un ticket.
      *
+     * La autorización se realiza mediante TicketPolicy.
      * Los usuarios normales solo pueden ver sus propios tickets.
      * Admin y técnicos pueden consultar cualquier ticket.
      */
-    public function show(Request $request, Ticket $ticket): JsonResponse
-    {
+    public function show(
+        Request $request,
+        Ticket $ticket
+    ): JsonResponse {
         $user = $request->user();
 
         $roleSlug = $user?->role?->slug;
 
         /*
-         * Un usuario normal no puede consultar
-         * tickets que no le pertenecen.
+         * Comprobar que el usuario tiene un rol válido.
          */
-        if (
-            $roleSlug === 'user'
-            && $ticket->created_by !== $user->id
-        ) {
-            return response()->json([
-                'message' => 'No tienes permisos para consultar este ticket.',
-            ], 403);
-        }
-
         if (!in_array($roleSlug, ['admin', 'technician', 'user'], true)) {
             return response()->json([
                 'message' => 'No tienes un rol válido para consultar tickets.',
             ], 403);
         }
+
+        /*
+         * Delegar la autorización a TicketPolicy.
+         */
+        Gate::authorize('view', $ticket);
 
         /*
          * Los comentarios internos solo son visibles
@@ -141,23 +144,24 @@ class TicketController extends Controller
         ]);
     }
 
+
     /**
      * Crear un ticket.
+     *
+     * created_by siempre procede del usuario autenticado.
      */
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
 
         /*
+         * Autorización mediante TicketPolicy.
+         */
+        Gate::authorize('create', Ticket::class);
+
+        /*
          * IMPORTANTE:
          * No aceptamos created_by desde el cliente.
-         *
-         * Aunque alguien mande:
-         *
-         * "created_by": 1
-         *
-         * será ignorado y se utilizará siempre
-         * el usuario autenticado.
          */
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -202,8 +206,7 @@ class TicketController extends Controller
         /*
          * Historial: ticket creado.
          *
-         * El usuario del historial es el usuario
-         * autenticado, nunca un ID enviado por el cliente.
+         * user_id = usuario autenticado.
          */
         TicketHistory::create([
             'ticket_id' => $ticket->id,
@@ -217,7 +220,7 @@ class TicketController extends Controller
         /*
          * Historial: técnico asignado.
          *
-         * user_id = quién realizó la acción.
+         * user_id = quien realizó la acción.
          * new_value = técnico asignado.
          */
         if ($ticket->assigned_to) {
@@ -246,11 +249,11 @@ class TicketController extends Controller
         ], 201);
     }
 
+
     /**
      * Actualizar un ticket.
      *
-     * La ruta ya está protegida para:
-     * admin, technician.
+     * La autorización se realiza mediante TicketPolicy.
      *
      * El usuario que realiza la modificación
      * se obtiene SIEMPRE del token.
@@ -261,17 +264,14 @@ class TicketController extends Controller
     ): JsonResponse {
         $user = $request->user();
 
-        $roleSlug = $user?->role?->slug;
-
         /*
-         * Defensa adicional aunque la ruta ya tenga
-         * RoleMiddleware.
+         * TicketPolicy comprueba:
+         *
+         * admin       -> puede actualizar
+         * technician  -> solo si el ticket está asignado a él
+         * user        -> no puede actualizar
          */
-        if (!in_array($roleSlug, ['admin', 'technician'], true)) {
-            return response()->json([
-                'message' => 'No tienes permisos para actualizar tickets.',
-            ], 403);
-        }
+        Gate::authorize('update', $ticket);
 
         $validated = $request->validate([
             'title' => ['sometimes', 'string', 'max:255'],
@@ -290,7 +290,7 @@ class TicketController extends Controller
          *
          * "updated_by": 1
          *
-         * no se utilizará.
+         * siempre utilizamos el usuario autenticado.
          */
         $updatedBy = $user->id;
 
@@ -402,6 +402,9 @@ class TicketController extends Controller
             ]);
         }
 
+        /*
+         * Recargar relaciones.
+         */
         $ticket->load([
             'category',
             'creator',
@@ -417,22 +420,16 @@ class TicketController extends Controller
         ]);
     }
 
+
     /**
      * Eliminar un ticket.
      *
-     * La ruta ya está protegida para admin.
+     * TicketPolicy permite esta acción únicamente
+     * al administrador.
      */
-    public function destroy(
-        Request $request,
-        Ticket $ticket
-    ): JsonResponse {
-        $user = $request->user();
-
-        if ($user?->role?->slug !== 'admin') {
-            return response()->json([
-                'message' => 'No tienes permisos para eliminar tickets.',
-            ], 403);
-        }
+    public function destroy(Ticket $ticket): JsonResponse
+    {
+        Gate::authorize('delete', $ticket);
 
         $ticket->delete();
 

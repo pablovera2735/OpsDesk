@@ -1,0 +1,13 @@
+[90m= [39m[34;4mApp\Models\User[39;24m {#8626
+    [34mid[39m: [35m2[39m,
+    [34mname[39m: [32m"[39m[32mTécnico IT[39m[32m"[39m,
+    [34memail[39m: [32m"[39m[32mtecnico@opsdesk.local[39m[32m"[39m,
+    [34memail_verified_at[39m: [36mnull[39m,
+    #[33mpassword[39m: [32m"[39m\$[32m2y[39m\$[32m12[39m\$[32mRlIBVdDKm1BqQq.Cwg8ULufMD0QZ6a7oUdLtLVAFPFuTxsEx6GFv6[39m[32m"[39m,
+    #[33mremember_token[39m: [36mnull[39m,
+    [34mcreated_at[39m: [32m"[39m[32m2026-10-01 06:23:09[39m[32m"[39m,
+    [34mupdated_at[39m: [32m"[39m[32m2026-10-01 06:23:09[39m[32m"[39m,
+    [34mrole_id[39m: [35m2[39m,
+    [34mdepartment_id[39m: [35m1[39m,
+    [34mactive[39m: [35m1[39m,
+  }
