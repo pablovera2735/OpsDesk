@@ -1,0 +1,121 @@
+:host {
+  display: block;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #f4f7fb;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 430px;
+  padding: 36px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 35px;
+}
+
+.logo-icon {
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #2563eb;
+  color: white;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.logo h1 {
+  margin: 0;
+  color: #111827;
+  font-size: 24px;
+}
+
+.logo span {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.login-header {
+  margin-bottom: 28px;
+}
+
+.login-header h2 {
+  margin: 0 0 8px;
+  color: #111827;
+  font-size: 26px;
+}
+
+.login-header p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  outline: none;
+  font-size: 15px;
+}
+
+input:focus {
+  border-color: #2563eb;
+}
+
+button {
+  width: 100%;
+  padding: 13px;
+  border: 0;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  margin-bottom: 18px;
+  padding: 11px 13px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 14px;
+}

@@ -1,0 +1,221 @@
+<section class="create-ticket-page">
+
+  <header class="page-header">
+
+    <div>
+
+      <h1>Nuevo ticket</h1>
+
+      <p>
+        Crear una nueva incidencia en OpsDesk.
+      </p>
+
+    </div>
+
+    <a
+      routerLink="/tickets"
+      class="back-button"
+    >
+      ← Volver a tickets
+    </a>
+
+  </header>
+
+
+  <section class="form-card">
+
+    <form (ngSubmit)="createTicket()">
+
+
+      <!-- TÍTULO -->
+
+      <div class="form-group">
+
+        <label for="title">
+          Título
+        </label>
+
+        <input
+          id="title"
+          name="title"
+          type="text"
+          placeholder="Ej. El ordenador no tiene conexión a Internet"
+          [ngModel]="title()"
+          (ngModelChange)="title.set($event)"
+        >
+
+      </div>
+
+
+      <!-- DESCRIPCIÓN -->
+
+      <div class="form-group">
+
+        <label for="description">
+          Descripción
+        </label>
+
+        <textarea
+          id="description"
+          name="description"
+          rows="6"
+          placeholder="Describe detalladamente el problema..."
+          [ngModel]="description()"
+          (ngModelChange)="description.set($event)"
+        ></textarea>
+
+      </div>
+
+
+      <!-- PRIORIDAD -->
+
+      <div class="form-group">
+
+        <label for="priority">
+          Prioridad
+        </label>
+
+        <select
+          id="priority"
+          name="priority"
+          [ngModel]="priority()"
+          (ngModelChange)="priority.set($event)"
+        >
+
+          <option value="low">
+            Baja
+          </option>
+
+          <option value="medium">
+            Media
+          </option>
+
+          <option value="high">
+            Alta
+          </option>
+
+          <option value="critical">
+            Crítica
+          </option>
+
+        </select>
+
+      </div>
+
+
+      <!-- CATEGORÍA -->
+
+      <div class="form-group">
+
+        <label for="category">
+          Categoría
+        </label>
+
+        <select
+          id="category"
+          name="category"
+          [ngModel]="categoryId()"
+          (ngModelChange)="categoryId.set($event)"
+        >
+
+          <option value="">
+            Selecciona una categoría
+          </option>
+
+          <option value="1">
+            Hardware
+          </option>
+
+          <option value="2">
+            Impresoras
+          </option>
+
+          <option value="3">
+            Redes
+          </option>
+
+          <option value="4">
+            Software
+          </option>
+
+          <option value="5">
+            Accesos
+          </option>
+
+        </select>
+
+      </div>
+
+
+      <!-- ACTIVO -->
+
+      <div class="form-group">
+
+        <label for="asset">
+          Activo afectado
+        </label>
+
+        <input
+          id="asset"
+          name="asset"
+          type="number"
+          min="1"
+          placeholder="ID del activo (opcional)"
+          [ngModel]="assetId()"
+          (ngModelChange)="assetId.set($event)"
+        >
+
+        <small>
+          Puedes dejarlo vacío si el ticket no está relacionado
+          con ningún activo.
+        </small>
+
+      </div>
+
+
+      <!-- ERROR -->
+
+      @if (error()) {
+
+        <div class="form-error">
+          {{ error() }}
+        </div>
+
+      }
+
+
+      <!-- BOTONES -->
+
+      <div class="form-actions">
+
+        <button
+          type="button"
+          class="cancel-button"
+          (click)="cancel()"
+          [disabled]="saving()"
+        >
+          Cancelar
+        </button>
+
+
+        <button
+          type="submit"
+          class="save-button"
+          [disabled]="saving()"
+        >
+
+          @if (saving()) {
+            Guardando...
+          } @else {
+            Crear ticket
+          }
+
+        </button>
+
+      </div>
+
+    </form>
+
+  </section>
+
+</section>

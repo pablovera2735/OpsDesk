@@ -1,0 +1,441 @@
+<section class="tickets-page">
+
+  <div class="page-header">
+
+    <div>
+
+      <h1>Tickets</h1>
+
+      <p>
+        Gestión de incidencias de OpsDesk.
+      </p>
+
+    </div>
+
+    <button
+      type="button"
+      class="refresh-button"
+      (click)="loadTickets()"
+      [disabled]="loading()"
+    >
+      {{ loading() ? 'Cargando...' : 'Actualizar' }}
+    </button>
+
+  </div>
+
+
+  <!-- FILTROS -->
+
+  <section class="filters">
+
+    <div class="filter-group">
+
+      <label for="search">
+        Buscar
+      </label>
+
+      <input
+        id="search"
+        type="text"
+        placeholder="Código, título o descripción..."
+        [ngModel]="searchTerm()"
+        (ngModelChange)="searchTerm.set($event)"
+      >
+
+    </div>
+
+
+    <div class="filter-group">
+
+      <label for="status">
+        Estado
+      </label>
+
+      <select
+        id="status"
+        [ngModel]="selectedStatus()"
+        (ngModelChange)="selectedStatus.set($event)"
+      >
+
+        <option value="">
+          Todos
+        </option>
+
+        <option value="open">
+          Abierto
+        </option>
+
+        <option value="in_progress">
+          En progreso
+        </option>
+
+        <option value="resolved">
+          Resuelto
+        </option>
+
+        <option value="closed">
+          Cerrado
+        </option>
+
+      </select>
+
+    </div>
+
+
+    <div class="filter-group">
+
+      <label for="priority">
+        Prioridad
+      </label>
+
+      <select
+        id="priority"
+        [ngModel]="selectedPriority()"
+        (ngModelChange)="selectedPriority.set($event)"
+      >
+
+        <option value="">
+          Todas
+        </option>
+
+        <option value="low">
+          Baja
+        </option>
+
+        <option value="medium">
+          Media
+        </option>
+
+        <option value="high">
+          Alta
+        </option>
+
+        <option value="critical">
+          Crítica
+        </option>
+
+      </select>
+
+    </div>
+
+
+    <div class="filter-actions">
+
+      <button
+        type="button"
+        class="apply-button"
+        (click)="applyFilters()"
+        [disabled]="loading()"
+      >
+        Aplicar filtros
+      </button>
+
+      <button
+        type="button"
+        class="clear-button"
+        (click)="clearFilters()"
+        [disabled]="loading()"
+      >
+        Limpiar
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- CONTENIDO -->
+
+  @if (loading()) {
+
+    <div class="message">
+      Cargando tickets...
+    </div>
+
+  }
+
+  @else if (error()) {
+
+    <div class="message error">
+      {{ error() }}
+    </div>
+
+  }
+
+  @else {
+
+    @if (filteredTickets().length === 0) {
+
+      <div class="message">
+
+        No se encontraron tickets
+        con los filtros seleccionados.
+
+      </div>
+
+    }
+
+    @else {
+
+      <!-- INFORMACIÓN DE RESULTADOS -->
+
+      <div class="results-info">
+
+        Mostrando
+
+        <strong>
+          {{ filteredTickets().length }}
+        </strong>
+
+        ticket(s) de
+
+        <strong>
+          {{ totalTickets() }}
+        </strong>
+
+        · Página
+
+        <strong>
+          {{ currentPage() }}
+        </strong>
+
+        de
+
+        <strong>
+          {{ lastPage() }}
+        </strong>
+
+      </div>
+
+
+      <!-- TABLA -->
+
+      <div class="tickets-table-wrapper">
+
+        <table>
+
+          <thead>
+
+            <tr>
+
+              <th>Código</th>
+
+              <th>Título</th>
+
+              <th>Prioridad</th>
+
+              <th>Estado</th>
+
+              <th>Categoría</th>
+
+              <th>Creado por</th>
+
+              <th>Técnico</th>
+
+              <th>Acciones</th>
+
+            </tr>
+
+          </thead>
+
+
+          <tbody>
+
+            @for (
+              ticket of filteredTickets();
+              track ticket.id
+            ) {
+
+              <tr>
+
+                <td>
+
+                  <strong>
+                    {{ ticket.code }}
+                  </strong>
+
+                </td>
+
+
+                <td>
+                  {{ ticket.title }}
+                </td>
+
+
+                <td>
+
+                  <span
+                    class="badge priority-{{ ticket.priority }}"
+                  >
+
+                    @switch (ticket.priority) {
+
+                      @case ('low') {
+                        Baja
+                      }
+
+                      @case ('medium') {
+                        Media
+                      }
+
+                      @case ('high') {
+                        Alta
+                      }
+
+                      @case ('critical') {
+                        Crítica
+                      }
+
+                    }
+
+                  </span>
+
+                </td>
+
+
+                <td>
+
+                  <span
+                    class="badge status-{{ ticket.status }}"
+                  >
+
+                    @switch (ticket.status) {
+
+                      @case ('open') {
+                        Abierto
+                      }
+
+                      @case ('in_progress') {
+                        En progreso
+                      }
+
+                      @case ('resolved') {
+                        Resuelto
+                      }
+
+                      @case ('closed') {
+                        Cerrado
+                      }
+
+                    }
+
+                  </span>
+
+                </td>
+
+
+                <td>
+
+                  {{
+                    ticket.category?.name
+                    || 'Sin categoría'
+                  }}
+
+                </td>
+
+
+                <td>
+
+                  {{
+                    ticket.creator?.name
+                    || 'Desconocido'
+                  }}
+
+                </td>
+
+
+                <td>
+
+                  {{
+                    ticket.assigned_technician?.name
+                    || 'Sin asignar'
+                  }}
+
+                </td>
+
+
+                <td>
+
+                  <a
+                    [routerLink]="[
+                      '/tickets',
+                      ticket.id
+                    ]"
+                    class="detail-link"
+                  >
+                    Ver detalle
+                  </a>
+
+                </td>
+
+              </tr>
+
+            }
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+
+      <!-- PAGINACIÓN -->
+
+      @if (lastPage() > 1) {
+
+        <div class="pagination">
+
+          <button
+            type="button"
+            class="pagination-button"
+            (click)="previousPage()"
+            [disabled]="currentPage() === 1 || loading()"
+          >
+            ← Anterior
+          </button>
+
+
+          <div class="page-numbers">
+
+            @for (
+              page of [].constructor(lastPage());
+              let i = $index;
+              track i
+            ) {
+
+              <button
+                type="button"
+                class="page-number"
+                [class.active]="currentPage() === i + 1"
+                (click)="goToPage(i + 1)"
+                [disabled]="loading()"
+              >
+                {{ i + 1 }}
+              </button>
+
+            }
+
+          </div>
+
+
+          <button
+            type="button"
+            class="pagination-button"
+            (click)="nextPage()"
+            [disabled]="
+              currentPage() === lastPage()
+              || loading()
+            "
+          >
+            Siguiente →
+          </button>
+
+        </div>
+
+      }
+
+    }
+
+  }
+
+</section>

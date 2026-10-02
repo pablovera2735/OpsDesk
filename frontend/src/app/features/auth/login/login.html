@@ -1,0 +1,63 @@
+<div class="login-page">
+  <div class="login-card">
+
+    <div class="logo">
+      <div class="logo-icon">O</div>
+
+      <div>
+        <h1>OpsDesk</h1>
+        <span>IT Service Management</span>
+      </div>
+    </div>
+
+    <div class="login-header">
+      <h2>Iniciar sesión</h2>
+      <p>Accede al sistema de gestión de incidencias.</p>
+    </div>
+
+    <form (ngSubmit)="login()">
+
+      <div class="form-group">
+        <label for="email">Email</label>
+
+        <input
+          id="email"
+          type="email"
+          name="email"
+          [(ngModel)]="email"
+          placeholder="usuario@opsdesk.local"
+          autocomplete="email"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Contraseña</label>
+
+        <input
+          id="password"
+          type="password"
+          name="password"
+          [(ngModel)]="password"
+          placeholder="Contraseña"
+          autocomplete="current-password"
+        />
+      </div>
+
+      @if (errorMessage) {
+        <div class="error-message">
+          {{ errorMessage }}
+        </div>
+      }
+
+      <button type="submit" [disabled]="loading">
+        @if (loading) {
+          Iniciando sesión...
+        } @else {
+          Iniciar sesión
+        }
+      </button>
+
+    </form>
+
+  </div>
+</div>
