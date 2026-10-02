@@ -1,0 +1,321 @@
+<section class="create-ticket-page">
+
+  <header class="page-header">
+
+    <div>
+
+      <h1>Editar ticket</h1>
+
+      <p>
+        Modificar la información de la incidencia.
+      </p>
+
+    </div>
+
+
+    <a
+      routerLink="/tickets"
+      class="back-button"
+    >
+      ← Volver a tickets
+    </a>
+
+  </header>
+
+
+  @if (loading()) {
+
+    <section class="form-card">
+
+      <div class="loading-message">
+        Cargando ticket...
+      </div>
+
+    </section>
+
+  }
+
+  @else if (error() && !title()) {
+
+    <section class="form-card">
+
+      <div class="form-error">
+        {{ error() }}
+      </div>
+
+    </section>
+
+  }
+
+  @else {
+
+    <section class="form-card">
+
+      <form
+        (ngSubmit)="updateTicket()"
+      >
+
+
+        <!-- TÍTULO -->
+
+        <div class="form-group">
+
+          <label for="title">
+            Título
+          </label>
+
+          <input
+            id="title"
+            name="title"
+            type="text"
+            [ngModel]="title()"
+            (ngModelChange)="title.set($event)"
+            [disabled]="saving()"
+          >
+
+        </div>
+
+
+        <!-- DESCRIPCIÓN -->
+
+        <div class="form-group">
+
+          <label for="description">
+            Descripción
+          </label>
+
+          <textarea
+            id="description"
+            name="description"
+            rows="6"
+            [ngModel]="description()"
+            (ngModelChange)="description.set($event)"
+            [disabled]="saving()"
+          ></textarea>
+
+        </div>
+
+
+        <!-- PRIORIDAD -->
+
+        <div class="form-group">
+
+          <label for="priority">
+            Prioridad
+          </label>
+
+          <select
+            id="priority"
+            name="priority"
+            [ngModel]="priority()"
+            (ngModelChange)="priority.set($event)"
+            [disabled]="saving()"
+          >
+
+            <option value="low">
+              Baja
+            </option>
+
+            <option value="medium">
+              Media
+            </option>
+
+            <option value="high">
+              Alta
+            </option>
+
+            <option value="critical">
+              Crítica
+            </option>
+
+          </select>
+
+        </div>
+
+
+        <!-- ESTADO -->
+
+        <div class="form-group">
+
+          <label for="status">
+            Estado
+          </label>
+
+          <select
+            id="status"
+            name="status"
+            [ngModel]="status()"
+            (ngModelChange)="status.set($event)"
+            [disabled]="saving()"
+          >
+
+            <option value="open">
+              Abierto
+            </option>
+
+            <option value="in_progress">
+              En progreso
+            </option>
+
+            <option value="resolved">
+              Resuelto
+            </option>
+
+            <option value="closed">
+              Cerrado
+            </option>
+
+          </select>
+
+        </div>
+
+
+        <!-- CATEGORÍA -->
+
+        <div class="form-group">
+
+          <label for="category">
+            Categoría
+          </label>
+
+          <select
+            id="category"
+            name="category"
+            [ngModel]="categoryId()"
+            (ngModelChange)="categoryId.set($event)"
+            [disabled]="
+              saving() ||
+              loadingOptions()
+            "
+          >
+
+            <option value="">
+              Selecciona una categoría
+            </option>
+
+
+            @for (
+              category of categories();
+              track category.id
+            ) {
+
+              <option
+                [value]="category.id"
+              >
+                {{ category.name }}
+              </option>
+
+            }
+
+          </select>
+
+        </div>
+
+
+        <!-- ACTIVO -->
+
+        <div class="form-group">
+
+          <label for="asset">
+            Activo afectado
+          </label>
+
+          <select
+            id="asset"
+            name="asset"
+            [ngModel]="assetId()"
+            (ngModelChange)="assetId.set($event)"
+            [disabled]="
+              saving() ||
+              loadingOptions()
+            "
+          >
+
+            <option value="">
+              Sin activo
+            </option>
+
+
+            @for (
+              asset of assets();
+              track asset.id
+            ) {
+
+              <option
+                [value]="asset.id"
+              >
+                {{ asset.asset_code }}
+                —
+                {{ asset.hostname }}
+              </option>
+
+            }
+
+          </select>
+
+
+          <small>
+            Puedes dejarlo vacío si el ticket no está
+            relacionado con ningún activo.
+          </small>
+
+        </div>
+
+
+        <!-- ERROR -->
+
+        @if (error()) {
+
+          <div class="form-error">
+
+            {{ error() }}
+
+          </div>
+
+        }
+
+
+        <!-- BOTONES -->
+
+        <div class="form-actions">
+
+          <button
+            type="button"
+            class="cancel-button"
+            (click)="cancel()"
+            [disabled]="saving()"
+          >
+            Cancelar
+          </button>
+
+
+          <button
+            type="submit"
+            class="save-button"
+            [disabled]="
+              saving() ||
+              loadingOptions()
+            "
+          >
+
+            @if (saving()) {
+
+              Guardando...
+
+            } @else {
+
+              Guardar cambios
+
+            }
+
+          </button>
+
+        </div>
+
+      </form>
+
+    </section>
+
+  }
+
+</section>

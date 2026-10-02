@@ -12,6 +12,7 @@
 
     </div>
 
+
     <a
       routerLink="/tickets"
       class="back-button"
@@ -24,7 +25,19 @@
 
   <section class="form-card">
 
-    <form (ngSubmit)="createTicket()">
+    @if (loadingOptions()) {
+
+      <div class="loading-message">
+        Cargando categorías y activos...
+      </div>
+
+    }
+
+
+    <form
+      (ngSubmit)="createTicket()"
+      [class.form-disabled]="loadingOptions()"
+    >
 
 
       <!-- TÍTULO -->
@@ -42,6 +55,7 @@
           placeholder="Ej. El ordenador no tiene conexión a Internet"
           [ngModel]="title()"
           (ngModelChange)="title.set($event)"
+          [disabled]="saving() || loadingOptions()"
         >
 
       </div>
@@ -62,6 +76,7 @@
           placeholder="Describe detalladamente el problema..."
           [ngModel]="description()"
           (ngModelChange)="description.set($event)"
+          [disabled]="saving() || loadingOptions()"
         ></textarea>
 
       </div>
@@ -80,6 +95,7 @@
           name="priority"
           [ngModel]="priority()"
           (ngModelChange)="priority.set($event)"
+          [disabled]="saving() || loadingOptions()"
         >
 
           <option value="low">
@@ -116,31 +132,26 @@
           name="category"
           [ngModel]="categoryId()"
           (ngModelChange)="categoryId.set($event)"
+          [disabled]="saving() || loadingOptions()"
         >
 
           <option value="">
             Selecciona una categoría
           </option>
 
-          <option value="1">
-            Hardware
-          </option>
 
-          <option value="2">
-            Impresoras
-          </option>
+          @for (
+            category of categories();
+            track category.id
+          ) {
 
-          <option value="3">
-            Redes
-          </option>
+            <option
+              [value]="category.id"
+            >
+              {{ category.name }}
+            </option>
 
-          <option value="4">
-            Software
-          </option>
-
-          <option value="5">
-            Accesos
-          </option>
+          }
 
         </select>
 
@@ -155,19 +166,40 @@
           Activo afectado
         </label>
 
-        <input
+        <select
           id="asset"
           name="asset"
-          type="number"
-          min="1"
-          placeholder="ID del activo (opcional)"
           [ngModel]="assetId()"
           (ngModelChange)="assetId.set($event)"
+          [disabled]="saving() || loadingOptions()"
         >
 
+          <option value="">
+            Sin activo
+          </option>
+
+
+          @for (
+            asset of assets();
+            track asset.id
+          ) {
+
+            <option
+              [value]="asset.id"
+            >
+              {{ asset.asset_code }}
+              —
+              {{ asset.hostname }}
+            </option>
+
+          }
+
+        </select>
+
+
         <small>
-          Puedes dejarlo vacío si el ticket no está relacionado
-          con ningún activo.
+          Puedes dejarlo vacío si el ticket no está
+          relacionado con ningún activo.
         </small>
 
       </div>
@@ -178,7 +210,9 @@
       @if (error()) {
 
         <div class="form-error">
+
           {{ error() }}
+
         </div>
 
       }
@@ -201,13 +235,20 @@
         <button
           type="submit"
           class="save-button"
-          [disabled]="saving()"
+          [disabled]="
+            saving() ||
+            loadingOptions()
+          "
         >
 
           @if (saving()) {
+
             Guardando...
+
           } @else {
+
             Crear ticket
+
           }
 
         </button>

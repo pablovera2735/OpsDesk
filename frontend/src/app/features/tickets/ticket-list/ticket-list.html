@@ -1,6 +1,6 @@
 <section class="tickets-page">
 
-  <div class="page-header">
+  <header class="page-header">
 
     <div>
 
@@ -12,139 +12,28 @@
 
     </div>
 
-    <button
-      type="button"
-      class="refresh-button"
-      (click)="loadTickets()"
-      [disabled]="loading()"
-    >
-      {{ loading() ? 'Cargando...' : 'Actualizar' }}
-    </button>
+    <div class="header-actions">
 
-  </div>
-
-
-  <!-- FILTROS -->
-
-  <section class="filters">
-
-    <div class="filter-group">
-
-      <label for="search">
-        Buscar
-      </label>
-
-      <input
-        id="search"
-        type="text"
-        placeholder="Código, título o descripción..."
-        [ngModel]="searchTerm()"
-        (ngModelChange)="searchTerm.set($event)"
+      <a
+        routerLink="/tickets/new"
+        class="new-ticket-button"
       >
-
-    </div>
-
-
-    <div class="filter-group">
-
-      <label for="status">
-        Estado
-      </label>
-
-      <select
-        id="status"
-        [ngModel]="selectedStatus()"
-        (ngModelChange)="selectedStatus.set($event)"
-      >
-
-        <option value="">
-          Todos
-        </option>
-
-        <option value="open">
-          Abierto
-        </option>
-
-        <option value="in_progress">
-          En progreso
-        </option>
-
-        <option value="resolved">
-          Resuelto
-        </option>
-
-        <option value="closed">
-          Cerrado
-        </option>
-
-      </select>
-
-    </div>
-
-
-    <div class="filter-group">
-
-      <label for="priority">
-        Prioridad
-      </label>
-
-      <select
-        id="priority"
-        [ngModel]="selectedPriority()"
-        (ngModelChange)="selectedPriority.set($event)"
-      >
-
-        <option value="">
-          Todas
-        </option>
-
-        <option value="low">
-          Baja
-        </option>
-
-        <option value="medium">
-          Media
-        </option>
-
-        <option value="high">
-          Alta
-        </option>
-
-        <option value="critical">
-          Crítica
-        </option>
-
-      </select>
-
-    </div>
-
-
-    <div class="filter-actions">
+        + Nuevo ticket
+      </a>
 
       <button
         type="button"
-        class="apply-button"
-        (click)="applyFilters()"
+        class="refresh-button"
+        (click)="loadTickets()"
         [disabled]="loading()"
       >
-        Aplicar filtros
-      </button>
-
-      <button
-        type="button"
-        class="clear-button"
-        (click)="clearFilters()"
-        [disabled]="loading()"
-      >
-        Limpiar
+        {{ loading() ? 'Cargando...' : 'Actualizar' }}
       </button>
 
     </div>
 
-  </section>
+  </header>
 
-
-  <!-- CONTENIDO -->
 
   @if (loading()) {
 
@@ -152,63 +41,21 @@
       Cargando tickets...
     </div>
 
-  }
-
-  @else if (error()) {
+  } @else if (error()) {
 
     <div class="message error">
       {{ error() }}
     </div>
 
-  }
+  } @else {
 
-  @else {
-
-    @if (filteredTickets().length === 0) {
+    @if (tickets().length === 0) {
 
       <div class="message">
-
-        No se encontraron tickets
-        con los filtros seleccionados.
-
+        No hay tickets disponibles.
       </div>
 
-    }
-
-    @else {
-
-      <!-- INFORMACIÓN DE RESULTADOS -->
-
-      <div class="results-info">
-
-        Mostrando
-
-        <strong>
-          {{ filteredTickets().length }}
-        </strong>
-
-        ticket(s) de
-
-        <strong>
-          {{ totalTickets() }}
-        </strong>
-
-        · Página
-
-        <strong>
-          {{ currentPage() }}
-        </strong>
-
-        de
-
-        <strong>
-          {{ lastPage() }}
-        </strong>
-
-      </div>
-
-
-      <!-- TABLA -->
+    } @else {
 
       <div class="tickets-table-wrapper">
 
@@ -241,19 +88,14 @@
 
           <tbody>
 
-            @for (
-              ticket of filteredTickets();
-              track ticket.id
-            ) {
+            @for (ticket of tickets(); track ticket.id) {
 
               <tr>
 
                 <td>
-
                   <strong>
                     {{ ticket.code }}
                   </strong>
-
                 </td>
 
 
@@ -267,7 +109,6 @@
                   <span
                     class="badge priority-{{ ticket.priority }}"
                   >
-
                     @switch (ticket.priority) {
 
                       @case ('low') {
@@ -287,7 +128,6 @@
                       }
 
                     }
-
                   </span>
 
                 </td>
@@ -325,32 +165,26 @@
 
 
                 <td>
-
                   {{
                     ticket.category?.name
                     || 'Sin categoría'
                   }}
-
                 </td>
 
 
                 <td>
-
                   {{
                     ticket.creator?.name
                     || 'Desconocido'
                   }}
-
                 </td>
 
 
                 <td>
-
                   {{
                     ticket.assigned_technician?.name
                     || 'Sin asignar'
                   }}
-
                 </td>
 
 
@@ -377,62 +211,6 @@
         </table>
 
       </div>
-
-
-      <!-- PAGINACIÓN -->
-
-      @if (lastPage() > 1) {
-
-        <div class="pagination">
-
-          <button
-            type="button"
-            class="pagination-button"
-            (click)="previousPage()"
-            [disabled]="currentPage() === 1 || loading()"
-          >
-            ← Anterior
-          </button>
-
-
-          <div class="page-numbers">
-
-            @for (
-              page of [].constructor(lastPage());
-              let i = $index;
-              track i
-            ) {
-
-              <button
-                type="button"
-                class="page-number"
-                [class.active]="currentPage() === i + 1"
-                (click)="goToPage(i + 1)"
-                [disabled]="loading()"
-              >
-                {{ i + 1 }}
-              </button>
-
-            }
-
-          </div>
-
-
-          <button
-            type="button"
-            class="pagination-button"
-            (click)="nextPage()"
-            [disabled]="
-              currentPage() === lastPage()
-              || loading()
-            "
-          >
-            Siguiente →
-          </button>
-
-        </div>
-
-      }
 
     }
 

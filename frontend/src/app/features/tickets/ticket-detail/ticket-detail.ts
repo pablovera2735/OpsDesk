@@ -17,19 +17,52 @@ import {
 
       <header class="page-header">
 
-        <div>
-          <h1>Detalle del ticket</h1>
-          <p>Información de la incidencia.</p>
-        </div>
+  <div>
 
-        <a
-          routerLink="/tickets"
-          class="back-button"
-        >
-          ← Volver a tickets
-        </a>
+    <h1>Detalle del ticket</h1>
 
-      </header>
+    <p>
+      Información de la incidencia.
+    </p>
+
+  </div>
+
+  @if (ticket(); as currentTicket) {
+
+    <div class="header-actions">
+
+      <a
+        [routerLink]="[
+          '/tickets',
+          currentTicket.id,
+          'edit'
+        ]"
+        class="edit-button"
+      >
+        Editar ticket
+      </a>
+
+      <a
+        routerLink="/tickets"
+        class="back-button"
+      >
+        ← Volver a tickets
+      </a>
+
+    </div>
+
+  } @else {
+
+    <a
+      routerLink="/tickets"
+      class="back-button"
+    >
+      ← Volver a tickets
+    </a>
+
+  }
+
+</header>
 
 
       @if (loading()) {
@@ -297,6 +330,28 @@ import {
       margin: 0;
       color: #6b7280;
     }
+
+    .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.edit-button {
+  display: inline-block;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.edit-button:hover {
+  background: #1d4ed8;
+}
 
 
     .back-button {
