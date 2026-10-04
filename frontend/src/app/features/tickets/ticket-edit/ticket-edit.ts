@@ -8,21 +8,47 @@ import {
 import { FormsModule } from '@angular/forms';
 
 import {
+  HttpErrorResponse
+} from '@angular/common/http';
+
+import {
   ActivatedRoute,
   Router,
   RouterLink
 } from '@angular/router';
 
 import {
+  AuthService,
+  User
+} from '../../../core/services/auth.service';
+
+import {
   TicketService,
+  Ticket,
   TicketCategory,
-  TicketAsset,
   UpdateTicketPayload
 } from '../../../core/services/ticket.service';
 
 
+/*
+ * ============================================================
+ * MODOS DE ASIGNACIÓN
+ * ============================================================
+ *
+ * keep = mantener técnico actual
+ * none = quitar asignación
+ * me   = asignarme a mí
+ */
+
+type AssignmentMode =
+  | 'keep'
+  | 'none'
+  | 'me';
+
+
 @Component({
   selector: 'app-ticket-edit',
+
   standalone: true,
 
   imports: [
@@ -31,45 +57,84 @@ import {
   ],
 
   templateUrl: './ticket-edit.html',
+
   styleUrl: './ticket-edit.scss'
 })
-export class TicketEditComponent implements OnInit {
-
-  private readonly route = inject(ActivatedRoute);
-
-  private readonly router = inject(Router);
-
-  private readonly ticketService = inject(TicketService);
+export class TicketEditComponent
+  implements OnInit {
 
 
-  private ticketId = 0;
+  /*
+   * ==========================================================
+   * SERVICIOS
+   * ==========================================================
+   */
+
+  private readonly route =
+    inject(ActivatedRoute);
+
+  private readonly router =
+    inject(Router);
+
+  private readonly ticketService =
+    inject(TicketService);
+
+  private readonly authService =
+    inject(AuthService);
 
 
-  readonly title = signal('');
+  /*
+   * ==========================================================
+   * TICKET
+   * ==========================================================
+   */
 
-  readonly description = signal('');
+  readonly ticket =
+    signal<Ticket | null>(null);
+
+
+  /*
+   * ==========================================================
+   * FORMULARIO
+   * ==========================================================
+   */
+
+  readonly title =
+    signal('');
+
+  readonly description =
+    signal('');
+
 
   readonly priority =
-    signal<UpdateTicketPayload['priority']>('medium');
+    signal<
+      UpdateTicketPayload['priority']
+    >('medium');
+
 
   readonly status =
-    signal<UpdateTicketPayload['status']>('open');
+    signal<
+      UpdateTicketPayload['status']
+    >('open');
+
 
   readonly categoryId =
     signal('');
+
 
   readonly assetId =
     signal('');
 
 
   /*
-   * Categorías disponibles.
-   *
-   * Las dejamos en frontend porque no queremos
-   * hacer ninguna petición adicional al backend.
+   * ==========================================================
+   * CATEGORÍAS
+   * ==========================================================
    */
+
   readonly categories =
     signal<TicketCategory[]>([
+
       {
         id: 1,
         name: 'Hardware',
@@ -77,6 +142,7 @@ export class TicketEditComponent implements OnInit {
         description: 'Problemas de hardware',
         active: true
       },
+
       {
         id: 2,
         name: 'Impresoras',
@@ -84,6 +150,7 @@ export class TicketEditComponent implements OnInit {
         description: 'Problemas con impresoras',
         active: true
       },
+
       {
         id: 3,
         name: 'Redes',
@@ -91,6 +158,7 @@ export class TicketEditComponent implements OnInit {
         description: 'Problemas de red',
         active: true
       },
+
       {
         id: 4,
         name: 'Software',
@@ -98,6 +166,7 @@ export class TicketEditComponent implements OnInit {
         description: 'Problemas de software',
         active: true
       },
+
       {
         id: 5,
         name: 'Accesos',
@@ -105,24 +174,41 @@ export class TicketEditComponent implements OnInit {
         description: 'Problemas de acceso',
         active: true
       }
+
     ]);
 
 
   /*
-   * No necesitamos cargar todos los activos.
-   *
-   * Si el ticket tiene un activo relacionado,
-   * añadiremos ese activo al select.
+   * ==========================================================
+   * USUARIO ACTUAL
+   * ==========================================================
    */
-  readonly assets =
-    signal<TicketAsset[]>([]);
 
+  readonly currentUser =
+    signal<User | null>(null);
+
+
+  /*
+   * ==========================================================
+   * ASIGNACIÓN
+   * ==========================================================
+   */
+
+  readonly assignmentMode =
+    signal<AssignmentMode>('none');
+
+
+  /*
+   * ==========================================================
+   * ESTADOS
+   * ==========================================================
+   */
 
   readonly loading =
     signal(true);
 
-  readonly loadingOptions =
-    signal(false);
+  readonly loadingUser =
+    signal(true);
 
   readonly saving =
     signal(false);
@@ -131,14 +217,137 @@ export class TicketEditComponent implements OnInit {
     signal('');
 
 
+  /*
+   * ==========================================================
+   * INIT
+   * ==========================================================
+   */
+
   ngOnInit(): void {
 
-    const id = Number(
-      this.route.snapshot.paramMap.get('id')
-    );
+    this.loadCurrentUser();
+
+    this.loadTicket();
+
+  }
 
 
-    if (!id) {
+  /*
+   * ==========================================================
+   * OBTENER ID DEL TICKET
+   * ==========================================================
+   */
+
+  private getTicketId(): number | null {
+
+    const id =
+      Number(
+        this.route.snapshot.paramMap.get('id')
+      );
+
+
+    if (
+      !id ||
+      Number.isNaN(id)
+    ) {
+
+      return null;
+
+    }
+
+
+    return id;
+
+  }
+
+
+  /*
+   * ==========================================================
+   * CARGAR USUARIO ACTUAL
+   * ==========================================================
+   */
+
+  private loadCurrentUser(): void {
+
+    this.loadingUser.set(true);
+
+
+    this.authService.me().subscribe({
+
+      next: (
+        response: { data: User }
+      ) => {
+
+        console.log(
+          'Usuario actual:',
+          response.data
+        );
+
+
+        this.currentUser.set(
+          response.data
+        );
+
+
+        this.loadingUser.set(false);
+
+
+        /*
+         * Si el ticket ya está cargado,
+         * calculamos la asignación.
+         */
+
+        this.updateAssignmentMode();
+
+      },
+
+
+      error: (
+        error: HttpErrorResponse
+      ) => {
+
+        console.error(
+          'Error obteniendo usuario:',
+          error
+        );
+
+
+        this.currentUser.set(
+          null
+        );
+
+
+        this.loadingUser.set(false);
+
+      }
+
+    });
+
+  }
+
+
+  /*
+   * ==========================================================
+   * CARGAR TICKET
+   * ==========================================================
+   */
+
+  private loadTicket(): void {
+
+    this.loading.set(true);
+
+    this.error.set('');
+
+
+    const id =
+      this.getTicketId();
+
+
+    /*
+     * ID inválido
+     */
+
+    if (id === null) {
 
       this.error.set(
         'ID de ticket no válido.'
@@ -147,37 +356,41 @@ export class TicketEditComponent implements OnInit {
       this.loading.set(false);
 
       return;
+
     }
 
 
-    this.ticketId = id;
-
-    this.loadTicket();
-  }
-
-
-  /*
-   * Cargar ticket
-   */
-  private loadTicket(): void {
-
-    this.loading.set(true);
-
-    this.error.set('');
-
+    /*
+     * GET /api/tickets/{id}
+     */
 
     this.ticketService
-      .getTicket(this.ticketId)
+      .getTicket(id)
       .subscribe({
 
-        next: (response) => {
+        next: (
+          response: { data: Ticket }
+        ) => {
 
-          const ticket = response.data;
+          console.log(
+            'Ticket recibido:',
+            response.data
+          );
+
+
+          const ticket =
+            response.data;
+
+
+          this.ticket.set(
+            ticket
+          );
 
 
           /*
-           * Datos principales
+           * Rellenar formulario
            */
+
           this.title.set(
             ticket.title
           );
@@ -198,37 +411,25 @@ export class TicketEditComponent implements OnInit {
           );
 
 
-          /*
-           * Categoría
-           */
           this.categoryId.set(
-            ticket.category_id?.toString() || ''
+            ticket.category_id
+              ? ticket.category_id.toString()
+              : ''
           );
 
 
-          /*
-           * Activo
-           */
           this.assetId.set(
-            ticket.asset_id?.toString() || ''
+            ticket.asset_id
+              ? ticket.asset_id.toString()
+              : ''
           );
 
 
           /*
-           * Si el ticket tiene un activo,
-           * lo mostramos en el select.
+           * Calcular asignación
            */
-          if (ticket.asset) {
 
-            this.assets.set([
-              ticket.asset
-            ]);
-
-          } else {
-
-            this.assets.set([]);
-
-          }
+          this.updateAssignmentMode();
 
 
           this.loading.set(false);
@@ -236,7 +437,9 @@ export class TicketEditComponent implements OnInit {
         },
 
 
-        error: (error) => {
+        error: (
+          error: HttpErrorResponse
+        ) => {
 
           console.error(
             'Error cargando ticket:',
@@ -247,23 +450,29 @@ export class TicketEditComponent implements OnInit {
           this.loading.set(false);
 
 
-          if (error.status === 404) {
+          if (
+            error.status === 404
+          ) {
 
             this.error.set(
               'El ticket no existe.'
             );
 
             return;
+
           }
 
 
-          if (error.status === 401) {
+          if (
+            error.status === 401
+          ) {
 
             this.error.set(
-              'Tu sesión ha caducado. Inicia sesión de nuevo.'
+              'Tu sesión ha caducado.'
             );
 
             return;
+
           }
 
 
@@ -279,24 +488,136 @@ export class TicketEditComponent implements OnInit {
 
 
   /*
-   * Actualizar ticket
+   * ==========================================================
+   * DETERMINAR ASIGNACIÓN ACTUAL
+   * ==========================================================
    */
+
+  private updateAssignmentMode(): void {
+
+    const ticket =
+      this.ticket();
+
+    const user =
+      this.currentUser();
+
+
+    /*
+     * Todavía no tenemos ticket
+     */
+
+    if (!ticket) {
+
+      return;
+
+    }
+
+
+    /*
+     * Sin asignar
+     */
+
+    if (
+      ticket.assigned_to === null ||
+      ticket.assigned_to === undefined
+    ) {
+
+      this.assignmentMode.set(
+        'none'
+      );
+
+      return;
+
+    }
+
+
+    /*
+     * Está asignado al usuario actual
+     */
+
+    if (
+      user &&
+      ticket.assigned_to === user.id
+    ) {
+
+      this.assignmentMode.set(
+        'me'
+      );
+
+      return;
+
+    }
+
+
+    /*
+     * Está asignado a otra persona
+     */
+
+    this.assignmentMode.set(
+      'keep'
+    );
+
+  }
+
+
+  /*
+   * ==========================================================
+   * CAMBIAR ASIGNACIÓN
+   * ==========================================================
+   */
+
+  changeAssignment(
+    value: AssignmentMode
+  ): void {
+
+    this.assignmentMode.set(
+      value
+    );
+
+  }
+
+
+  /*
+   * ==========================================================
+   * ACTUALIZAR TICKET
+   * ==========================================================
+   */
+
   updateTicket(): void {
 
     this.error.set('');
 
 
+    /*
+     * Evitar doble envío
+     */
+
+    if (
+      this.saving()
+    ) {
+
+      return;
+
+    }
+
+
+    /*
+     * Obtener datos
+     */
+
     const title =
       this.title().trim();
-
 
     const description =
       this.description().trim();
 
 
     /*
-     * Validación título
+     * ======================================================
+     * VALIDACIONES
+     * ======================================================
      */
+
     if (!title) {
 
       this.error.set(
@@ -304,12 +625,10 @@ export class TicketEditComponent implements OnInit {
       );
 
       return;
+
     }
 
 
-    /*
-     * Validación descripción
-     */
     if (!description) {
 
       this.error.set(
@@ -317,12 +636,10 @@ export class TicketEditComponent implements OnInit {
       );
 
       return;
+
     }
 
 
-    /*
-     * Validación categoría
-     */
     if (!this.categoryId()) {
 
       this.error.set(
@@ -330,21 +647,50 @@ export class TicketEditComponent implements OnInit {
       );
 
       return;
+
     }
 
 
-    /*
-     * Evitar doble envío
-     */
-    if (this.saving()) {
+    if (!this.status()) {
+
+      this.error.set(
+        'Debes seleccionar un estado.'
+      );
+
       return;
+
     }
 
 
     /*
-     * Payload
+     * ======================================================
+     * ID
+     * ======================================================
      */
-    const payload: UpdateTicketPayload = {
+
+    const id =
+      this.getTicketId();
+
+
+    if (id === null) {
+
+      this.error.set(
+        'ID de ticket no válido.'
+      );
+
+      return;
+
+    }
+
+
+    /*
+     * ======================================================
+     * PAYLOAD
+     * ======================================================
+     */
+
+    const payload:
+      UpdateTicketPayload = {
 
       title,
 
@@ -367,11 +713,77 @@ export class TicketEditComponent implements OnInit {
     };
 
 
+    /*
+     * ======================================================
+     * ASIGNACIÓN
+     * ======================================================
+     *
+     * keep:
+     * No mandamos assigned_to.
+     * El backend mantiene la asignación actual.
+     *
+     * none:
+     * assigned_to = null.
+     *
+     * me:
+     * assigned_to = ID del usuario actual.
+     */
+
+    if (
+      this.assignmentMode() === 'none'
+    ) {
+
+      payload.assigned_to =
+        null;
+
+    }
+
+
+    if (
+      this.assignmentMode() === 'me'
+    ) {
+
+      if (
+        !this.currentUser()
+      ) {
+
+        this.error.set(
+          'No se ha podido identificar al usuario actual.'
+        );
+
+        return;
+
+      }
+
+
+      payload.assigned_to =
+        this.currentUser()!.id;
+
+    }
+
+
+    /*
+     * Si es "keep", no añadimos assigned_to.
+     */
+
+
     console.log(
       'Actualizando ticket:',
+      id
+    );
+
+
+    console.log(
+      'Payload:',
       payload
     );
 
+
+    /*
+     * ======================================================
+     * GUARDAR
+     * ======================================================
+     */
 
     this.saving.set(true);
 
@@ -379,17 +791,26 @@ export class TicketEditComponent implements OnInit {
     /*
      * PATCH /api/tickets/{id}
      */
+
     this.ticketService
       .updateTicket(
-        this.ticketId,
+        id,
         payload
       )
       .subscribe({
 
-        next: (response) => {
+        /*
+         * ================================================
+         * ÉXITO
+         * ================================================
+         */
+
+        next: (
+          response: { data: Ticket }
+        ) => {
 
           console.log(
-            'Ticket actualizado correctamente:',
+            'Ticket actualizado:',
             response
           );
 
@@ -400,15 +821,24 @@ export class TicketEditComponent implements OnInit {
           /*
            * Volvemos al detalle
            */
+
           this.router.navigate([
             '/tickets',
-            this.ticketId
+            id
           ]);
 
         },
 
 
-        error: (error) => {
+        /*
+         * ================================================
+         * ERROR
+         * ================================================
+         */
+
+        error: (
+          error: HttpErrorResponse
+        ) => {
 
           console.error(
             'Error actualizando ticket:',
@@ -419,7 +849,13 @@ export class TicketEditComponent implements OnInit {
           this.saving.set(false);
 
 
-          if (error.status === 422) {
+          /*
+           * Validación Laravel
+           */
+
+          if (
+            error.status === 422
+          ) {
 
             this.error.set(
               error.error?.message ||
@@ -427,38 +863,64 @@ export class TicketEditComponent implements OnInit {
             );
 
             return;
+
           }
 
 
-          if (error.status === 401) {
+          /*
+           * No autorizado
+           */
+
+          if (
+            error.status === 401
+          ) {
 
             this.error.set(
               'Tu sesión ha caducado. Inicia sesión de nuevo.'
             );
 
             return;
+
           }
 
 
-          if (error.status === 403) {
+          /*
+           * Ticket inexistente
+           */
 
-            this.error.set(
-              'No tienes permiso para editar este ticket.'
-            );
-
-            return;
-          }
-
-
-          if (error.status === 404) {
+          if (
+            error.status === 404
+          ) {
 
             this.error.set(
               'El ticket no existe.'
             );
 
             return;
+
           }
 
+
+          /*
+           * Error servidor
+           */
+
+          if (
+            error.status >= 500
+          ) {
+
+            this.error.set(
+              'Error del servidor. Inténtalo de nuevo.'
+            );
+
+            return;
+
+          }
+
+
+          /*
+           * Error genérico
+           */
 
           this.error.set(
             'No se pudo actualizar el ticket.'
@@ -472,13 +934,31 @@ export class TicketEditComponent implements OnInit {
 
 
   /*
-   * Cancelar edición
+   * ==========================================================
+   * CANCELAR
+   * ==========================================================
    */
+
   cancel(): void {
 
+    const id =
+      this.getTicketId();
+
+
+    if (id !== null) {
+
+      this.router.navigate([
+        '/tickets',
+        id
+      ]);
+
+      return;
+
+    }
+
+
     this.router.navigate([
-      '/tickets',
-      this.ticketId
+      '/tickets'
     ]);
 
   }

@@ -1,10 +1,16 @@
 <section class="create-ticket-page">
 
+  <!-- ===================================================== -->
+  <!-- CABECERA -->
+  <!-- ===================================================== -->
+
   <header class="page-header">
 
     <div>
 
-      <h1>Nuevo ticket</h1>
+      <h1>
+        Nuevo ticket
+      </h1>
 
       <p>
         Crear una nueva incidencia en OpsDesk.
@@ -23,24 +29,20 @@
   </header>
 
 
+  <!-- ===================================================== -->
+  <!-- FORMULARIO -->
+  <!-- ===================================================== -->
+
   <section class="form-card">
-
-    @if (loadingOptions()) {
-
-      <div class="loading-message">
-        Cargando categorías y activos...
-      </div>
-
-    }
-
 
     <form
       (ngSubmit)="createTicket()"
-      [class.form-disabled]="loadingOptions()"
     >
 
 
+      <!-- ================================================= -->
       <!-- TÍTULO -->
+      <!-- ================================================= -->
 
       <div class="form-group">
 
@@ -53,15 +55,18 @@
           name="title"
           type="text"
           placeholder="Ej. El ordenador no tiene conexión a Internet"
+
           [ngModel]="title()"
+
           (ngModelChange)="title.set($event)"
-          [disabled]="saving() || loadingOptions()"
         >
 
       </div>
 
 
+      <!-- ================================================= -->
       <!-- DESCRIPCIÓN -->
+      <!-- ================================================= -->
 
       <div class="form-group">
 
@@ -73,16 +78,20 @@
           id="description"
           name="description"
           rows="6"
+
           placeholder="Describe detalladamente el problema..."
+
           [ngModel]="description()"
+
           (ngModelChange)="description.set($event)"
-          [disabled]="saving() || loadingOptions()"
         ></textarea>
 
       </div>
 
 
+      <!-- ================================================= -->
       <!-- PRIORIDAD -->
+      <!-- ================================================= -->
 
       <div class="form-group">
 
@@ -93,9 +102,10 @@
         <select
           id="priority"
           name="priority"
+
           [ngModel]="priority()"
+
           (ngModelChange)="priority.set($event)"
-          [disabled]="saving() || loadingOptions()"
         >
 
           <option value="low">
@@ -119,7 +129,9 @@
       </div>
 
 
+      <!-- ================================================= -->
       <!-- CATEGORÍA -->
+      <!-- ================================================= -->
 
       <div class="form-group">
 
@@ -130,9 +142,10 @@
         <select
           id="category"
           name="category"
+
           [ngModel]="categoryId()"
+
           (ngModelChange)="categoryId.set($event)"
-          [disabled]="saving() || loadingOptions()"
         >
 
           <option value="">
@@ -158,7 +171,82 @@
       </div>
 
 
+      <!-- ================================================= -->
+      <!-- TÉCNICO ASIGNADO -->
+      <!-- ================================================= -->
+
+      <div class="form-group">
+
+        <label for="assignment">
+          Técnico asignado
+        </label>
+
+
+        <select
+          id="assignment"
+          name="assignment"
+
+          [value]="
+            assignedToMe()
+              ? 'me'
+              : 'none'
+          "
+
+          (change)="
+            changeAssignment(
+              $any($event.target).value
+            )
+          "
+
+          [disabled]="loadingUser()"
+        >
+
+          <option value="none">
+            Sin asignar
+          </option>
+
+
+          <option
+            value="me"
+            [disabled]="!currentUser()"
+          >
+            Asignarme a mí
+          </option>
+
+        </select>
+
+
+        @if (loadingUser()) {
+
+          <small class="field-help">
+            Cargando usuario...
+          </small>
+
+        } @else if (currentUser()) {
+
+          <small class="field-help">
+            Usuario actual:
+
+            <strong>
+              {{ currentUser()!.name }}
+            </strong>
+
+          </small>
+
+        } @else {
+
+          <small class="field-help field-help-error">
+            No se ha podido identificar el usuario actual.
+          </small>
+
+        }
+
+      </div>
+
+
+      <!-- ================================================= -->
       <!-- ACTIVO -->
+      <!-- ================================================= -->
 
       <div class="form-group">
 
@@ -166,50 +254,37 @@
           Activo afectado
         </label>
 
-        <select
+        <input
           id="asset"
           name="asset"
+          type="number"
+          min="1"
+
+          placeholder="ID del activo (opcional)"
+
           [ngModel]="assetId()"
+
           (ngModelChange)="assetId.set($event)"
-          [disabled]="saving() || loadingOptions()"
         >
 
-          <option value="">
-            Sin activo
-          </option>
-
-
-          @for (
-            asset of assets();
-            track asset.id
-          ) {
-
-            <option
-              [value]="asset.id"
-            >
-              {{ asset.asset_code }}
-              —
-              {{ asset.hostname }}
-            </option>
-
-          }
-
-        </select>
-
-
-        <small>
-          Puedes dejarlo vacío si el ticket no está
-          relacionado con ningún activo.
+        <small class="field-help">
+          Puedes dejarlo vacío si el ticket no está relacionado
+          con ningún activo.
         </small>
 
       </div>
 
 
+      <!-- ================================================= -->
       <!-- ERROR -->
+      <!-- ================================================= -->
 
       @if (error()) {
 
-        <div class="form-error">
+        <div
+          class="form-error"
+          role="alert"
+        >
 
           {{ error() }}
 
@@ -218,14 +293,19 @@
       }
 
 
+      <!-- ================================================= -->
       <!-- BOTONES -->
+      <!-- ================================================= -->
 
       <div class="form-actions">
+
 
         <button
           type="button"
           class="cancel-button"
+
           (click)="cancel()"
+
           [disabled]="saving()"
         >
           Cancelar
@@ -235,10 +315,8 @@
         <button
           type="submit"
           class="save-button"
-          [disabled]="
-            saving() ||
-            loadingOptions()
-          "
+
+          [disabled]="saving()"
         >
 
           @if (saving()) {
@@ -254,6 +332,7 @@
         </button>
 
       </div>
+
 
     </form>
 

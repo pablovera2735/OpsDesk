@@ -5,7 +5,7 @@ import {
   HttpParams
 } from '@angular/common/http';
 
-import { Observable, map } from 'rxjs';
+import { Observable } from 'rxjs';
 
 
 /*
@@ -15,17 +15,11 @@ import { Observable, map } from 'rxjs';
  */
 
 export interface TicketCategory {
-
   id: number;
-
   name: string;
-
   slug: string;
-
   description?: string;
-
   active: boolean;
-
 }
 
 
@@ -36,13 +30,9 @@ export interface TicketCategory {
  */
 
 export interface TicketUser {
-
   id: number;
-
   name: string;
-
   email: string;
-
 }
 
 
@@ -53,29 +43,63 @@ export interface TicketUser {
  */
 
 export interface TicketAsset {
-
   id: number;
-
   asset_code: string;
-
   hostname: string;
-
   type: string;
-
   brand: string;
-
   model: string;
-
   serial_number: string;
-
   operating_system?: string;
-
   ip_address?: string;
-
   mac_address?: string;
-
   status: string;
+}
 
+
+/*
+ * ============================================================
+ * COMENTARIO
+ * ============================================================
+ */
+
+export interface TicketComment {
+  id: number;
+  ticket_id: number;
+  user_id: number;
+  message: string;
+  internal: boolean;
+  created_at: string;
+  updated_at: string;
+
+  user?: TicketUser;
+}
+
+
+/*
+ * ============================================================
+ * HISTORIAL
+ * ============================================================
+ */
+
+export interface TicketHistory {
+  id: number;
+  ticket_id: number;
+
+  user_id: number | null;
+
+  action: string;
+
+  field: string | null;
+
+  old_value: string | null;
+
+  new_value: string | null;
+
+  created_at: string;
+  updated_at: string;
+
+  user?: TicketUser | null;
 }
 
 
@@ -133,6 +157,9 @@ export interface Ticket {
 
   asset?: TicketAsset | null;
 
+  comments?: TicketComment[];
+
+  history?: TicketHistory[];
 }
 
 
@@ -156,8 +183,9 @@ export interface CreateTicketPayload {
 
   category_id: number;
 
-  asset_id?: number | null;
+  assigned_to?: number | null;
 
+  asset_id?: number | null;
 }
 
 
@@ -169,26 +197,41 @@ export interface CreateTicketPayload {
 
 export interface UpdateTicketPayload {
 
-  title: string;
+  title?: string;
 
-  description: string;
+  description?: string;
 
-  priority:
+  priority?:
     | 'low'
     | 'medium'
     | 'high'
     | 'critical';
 
-  status:
+  status?:
     | 'open'
     | 'in_progress'
     | 'resolved'
     | 'closed';
 
-  category_id: number;
+  category_id?: number;
+
+  assigned_to?: number | null;
 
   asset_id?: number | null;
+}
 
+
+/*
+ * ============================================================
+ * CREAR COMENTARIO
+ * ============================================================
+ */
+
+export interface CreateTicketCommentPayload {
+
+  message: string;
+
+  internal?: boolean;
 }
 
 
@@ -225,7 +268,6 @@ export interface TicketListResponse {
   to: number | null;
 
   total: number;
-
 }
 
 
@@ -240,28 +282,17 @@ export interface TicketListResponse {
 })
 export class TicketService {
 
-  private readonly http = inject(HttpClient);
+  private readonly http =
+    inject(HttpClient);
 
-
-  /*
-   * URL BASE
-   */
-
-  private readonly apiBaseUrl =
-    'http://127.0.0.1:8000/api';
-
-
-  /*
-   * URL TICKETS
-   */
 
   private readonly apiUrl =
-    `${this.apiBaseUrl}/tickets`;
+    'http://127.0.0.1:8000/api/tickets';
 
 
   /*
    * ==========================================================
-   * LISTAR TICKETS
+   * LISTAR
    * ==========================================================
    */
 
@@ -279,55 +310,67 @@ export class TicketService {
 
   }): Observable<TicketListResponse> {
 
-    let params = new HttpParams();
+    let params =
+      new HttpParams();
 
 
     if (filters?.status) {
 
-      params = params.set(
-        'status',
-        filters.status
-      );
+      params =
+        params.set(
+          'status',
+          filters.status
+        );
 
     }
 
 
     if (filters?.priority) {
 
-      params = params.set(
-        'priority',
-        filters.priority
-      );
+      params =
+        params.set(
+          'priority',
+          filters.priority
+        );
 
     }
 
 
-    if (filters?.category_id !== undefined) {
+    if (
+      filters?.category_id !== undefined
+    ) {
 
-      params = params.set(
-        'category_id',
-        filters.category_id.toString()
-      );
-
-    }
-
-
-    if (filters?.assigned_to !== undefined) {
-
-      params = params.set(
-        'assigned_to',
-        filters.assigned_to.toString()
-      );
+      params =
+        params.set(
+          'category_id',
+          filters.category_id.toString()
+        );
 
     }
 
 
-    if (filters?.page !== undefined) {
+    if (
+      filters?.assigned_to !== undefined
+    ) {
 
-      params = params.set(
-        'page',
-        filters.page.toString()
-      );
+      params =
+        params.set(
+          'assigned_to',
+          filters.assigned_to.toString()
+        );
+
+    }
+
+
+    if (
+      filters?.page !== undefined
+    ) {
+
+      params =
+        params.set(
+          'page',
+          filters.page.toString()
+        );
 
     }
 
@@ -338,7 +381,6 @@ export class TicketService {
         params
       }
     );
-
   }
 
 
@@ -355,7 +397,6 @@ export class TicketService {
     return this.http.get<{ data: Ticket }>(
       `${this.apiUrl}/${id}`
     );
-
   }
 
 
@@ -373,7 +414,6 @@ export class TicketService {
       this.apiUrl,
       payload
     );
-
   }
 
 
@@ -392,69 +432,32 @@ export class TicketService {
       `${this.apiUrl}/${id}`,
       payload
     );
-
   }
 
 
   /*
    * ==========================================================
-   * CATEGORÍAS
+   * AÑADIR COMENTARIO
    * ==========================================================
    *
-   * GET /api/categories
+   * POST /api/tickets/{ticket}/comments
    */
 
-  getCategories(): Observable<TicketCategory[]> {
+  addComment(
+    ticketId: number,
+    payload: CreateTicketCommentPayload
+  ): Observable<{
+    message: string;
+    data: TicketComment;
+  }> {
 
-    return this.http.get<
-      TicketCategory[] | { data: TicketCategory[] }
-    >(
-      `${this.apiBaseUrl}/categories`
-    ).pipe(
-
-      map(response => {
-
-        if (Array.isArray(response)) {
-          return response;
-        }
-
-        return response.data;
-
-      })
-
+    return this.http.post<{
+      message: string;
+      data: TicketComment;
+    }>(
+      `${this.apiUrl}/${ticketId}/comments`,
+      payload
     );
-
-  }
-
-
-  /*
-   * ==========================================================
-   * ACTIVOS
-   * ==========================================================
-   *
-   * GET /api/assets
-   */
-
-  getAssets(): Observable<TicketAsset[]> {
-
-    return this.http.get<
-      TicketAsset[] | { data: TicketAsset[] }
-    >(
-      `${this.apiBaseUrl}/assets`
-    ).pipe(
-
-      map(response => {
-
-        if (Array.isArray(response)) {
-          return response;
-        }
-
-        return response.data;
-
-      })
-
-    );
-
   }
 
 }

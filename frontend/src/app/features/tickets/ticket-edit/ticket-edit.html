@@ -1,53 +1,84 @@
-<section class="create-ticket-page">
+<section class="ticket-edit-page">
+
+  <!-- ===================================================== -->
+  <!-- CABECERA -->
+  <!-- ===================================================== -->
 
   <header class="page-header">
 
     <div>
 
-      <h1>Editar ticket</h1>
+      <span class="page-kicker">
+        {{ ticket()?.code || 'Ticket' }}
+      </span>
+
+      <h1>
+        Editar ticket
+      </h1>
 
       <p>
-        Modificar la información de la incidencia.
+        Modifica la información de la incidencia.
       </p>
 
     </div>
 
 
-    <a
-      routerLink="/tickets"
-      class="back-button"
-    >
-      ← Volver a tickets
-    </a>
+    <div class="header-actions">
+
+      <a
+        [routerLink]="[
+          '/tickets',
+          ticket()?.id
+        ]"
+        class="back-button"
+      >
+        ← Volver al detalle
+      </a>
+
+    </div>
 
   </header>
 
 
+  <!-- ===================================================== -->
+  <!-- CARGANDO -->
+  <!-- ===================================================== -->
+
   @if (loading()) {
 
-    <section class="form-card">
+    <section class="message">
 
-      <div class="loading-message">
+      <div class="loading-spinner"></div>
+
+      <span>
         Cargando ticket...
-      </div>
+      </span>
 
     </section>
 
   }
 
-  @else if (error() && !title()) {
 
-    <section class="form-card">
+  <!-- ===================================================== -->
+  <!-- ERROR -->
+  <!-- ===================================================== -->
 
-      <div class="form-error">
-        {{ error() }}
-      </div>
+  @else if (error() && !ticket()) {
+
+    <section class="message error">
+
+      {{ error() }}
 
     </section>
 
   }
 
-  @else {
+
+  <!-- ===================================================== -->
+  <!-- FORMULARIO -->
+  <!-- ===================================================== -->
+
+  @else if (ticket()) {
 
     <section class="form-card">
 
@@ -56,7 +87,46 @@
       >
 
 
+        <!-- =============================================== -->
+        <!-- INFORMACIÓN DEL TICKET -->
+        <!-- =============================================== -->
+
+        <div class="ticket-info">
+
+          <div>
+
+            <span>
+              Código
+            </span>
+
+            <strong>
+              {{ ticket()!.code }}
+            </strong>
+
+          </div>
+
+
+          <div>
+
+            <span>
+              Creado por
+            </span>
+
+            <strong>
+              {{
+                ticket()!.creator?.name
+                || 'Desconocido'
+              }}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <!-- =============================================== -->
         <!-- TÍTULO -->
+        <!-- =============================================== -->
 
         <div class="form-group">
 
@@ -68,15 +138,20 @@
             id="title"
             name="title"
             type="text"
+
             [ngModel]="title()"
+
             (ngModelChange)="title.set($event)"
-            [disabled]="saving()"
+
+            placeholder="Título de la incidencia"
           >
 
         </div>
 
 
+        <!-- =============================================== -->
         <!-- DESCRIPCIÓN -->
+        <!-- =============================================== -->
 
         <div class="form-group">
 
@@ -87,16 +162,21 @@
           <textarea
             id="description"
             name="description"
-            rows="6"
+            rows="7"
+
             [ngModel]="description()"
+
             (ngModelChange)="description.set($event)"
-            [disabled]="saving()"
+
+            placeholder="Descripción del problema"
           ></textarea>
 
         </div>
 
 
+        <!-- =============================================== -->
         <!-- PRIORIDAD -->
+        <!-- =============================================== -->
 
         <div class="form-group">
 
@@ -107,9 +187,10 @@
           <select
             id="priority"
             name="priority"
+
             [ngModel]="priority()"
+
             (ngModelChange)="priority.set($event)"
-            [disabled]="saving()"
           >
 
             <option value="low">
@@ -133,7 +214,9 @@
         </div>
 
 
+        <!-- =============================================== -->
         <!-- ESTADO -->
+        <!-- =============================================== -->
 
         <div class="form-group">
 
@@ -144,9 +227,10 @@
           <select
             id="status"
             name="status"
+
             [ngModel]="status()"
+
             (ngModelChange)="status.set($event)"
-            [disabled]="saving()"
           >
 
             <option value="open">
@@ -170,7 +254,9 @@
         </div>
 
 
+        <!-- =============================================== -->
         <!-- CATEGORÍA -->
+        <!-- =============================================== -->
 
         <div class="form-group">
 
@@ -181,12 +267,10 @@
           <select
             id="category"
             name="category"
+
             [ngModel]="categoryId()"
+
             (ngModelChange)="categoryId.set($event)"
-            [disabled]="
-              saving() ||
-              loadingOptions()
-            "
           >
 
             <option value="">
@@ -212,41 +296,45 @@
         </div>
 
 
-        <!-- ACTIVO -->
+        <!-- =============================================== -->
+        <!-- TÉCNICO ASIGNADO -->
+        <!-- =============================================== -->
 
         <div class="form-group">
 
-          <label for="asset">
-            Activo afectado
+          <label for="assignment">
+            Técnico asignado
           </label>
 
+
           <select
-            id="asset"
-            name="asset"
-            [ngModel]="assetId()"
-            (ngModelChange)="assetId.set($event)"
-            [disabled]="
-              saving() ||
-              loadingOptions()
-            "
+            id="assignment"
+            name="assignment"
+
+            [ngModel]="assignmentMode()"
+
+            (ngModelChange)="changeAssignment($event)"
+
+            [disabled]="loadingUser()"
           >
 
-            <option value="">
-              Sin activo
+            <option value="none">
+              Sin asignar
             </option>
 
 
-            @for (
-              asset of assets();
-              track asset.id
+            <option value="me">
+              Asignarme a mí
+            </option>
+
+
+            @if (
+              ticket()!.assigned_to !== null &&
+              assignmentMode() === 'keep'
             ) {
 
-              <option
-                [value]="asset.id"
-              >
-                {{ asset.asset_code }}
-                —
-                {{ asset.hostname }}
+              <option value="keep">
+                Mantener asignación actual
               </option>
 
             }
@@ -254,19 +342,100 @@
           </select>
 
 
-          <small>
-            Puedes dejarlo vacío si el ticket no está
-            relacionado con ningún activo.
+          <!-- Usuario actual -->
+
+          @if (currentUser()) {
+
+            <small class="field-help">
+
+              Usuario actual:
+
+              <strong>
+                {{ currentUser()!.name }}
+              </strong>
+
+            </small>
+
+          }
+
+
+          <!-- Técnico actual -->
+
+          @if (
+            ticket()!.assigned_technician
+          ) {
+
+            <small class="current-assignment">
+
+              Asignado actualmente a:
+
+              <strong>
+                {{
+                  ticket()!.assigned_technician!.name
+                }}
+              </strong>
+
+            </small>
+
+          } @else {
+
+            <small class="current-assignment">
+
+              Actualmente:
+              <strong>
+                Sin asignar
+              </strong>
+
+            </small>
+
+          }
+
+        </div>
+
+
+        <!-- =============================================== -->
+        <!-- ACTIVO -->
+        <!-- =============================================== -->
+
+        <div class="form-group">
+
+          <label for="asset">
+            Activo afectado
+          </label>
+
+          <input
+            id="asset"
+            name="asset"
+            type="number"
+            min="1"
+
+            [ngModel]="assetId()"
+
+            (ngModelChange)="assetId.set($event)"
+
+            placeholder="ID del activo (opcional)"
+          >
+
+          <small class="field-help">
+
+            Puedes dejarlo vacío si el ticket
+            no está relacionado con ningún activo.
+
           </small>
 
         </div>
 
 
+        <!-- =============================================== -->
         <!-- ERROR -->
+        <!-- =============================================== -->
 
         @if (error()) {
 
-          <div class="form-error">
+          <div
+            class="form-error"
+            role="alert"
+          >
 
             {{ error() }}
 
@@ -275,27 +444,32 @@
         }
 
 
+        <!-- =============================================== -->
         <!-- BOTONES -->
+        <!-- =============================================== -->
 
         <div class="form-actions">
+
 
           <button
             type="button"
             class="cancel-button"
+
             (click)="cancel()"
+
             [disabled]="saving()"
           >
+
             Cancelar
+
           </button>
 
 
           <button
             type="submit"
             class="save-button"
-            [disabled]="
-              saving() ||
-              loadingOptions()
-            "
+
+            [disabled]="saving()"
           >
 
             @if (saving()) {
@@ -310,7 +484,9 @@
 
           </button>
 
+
         </div>
+
 
       </form>
 

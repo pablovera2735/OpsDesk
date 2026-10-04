@@ -1,0 +1,746 @@
+<main class="ticket-detail">
+
+  <!-- ===================================================== -->
+  <!-- CARGANDO -->
+  <!-- ===================================================== -->
+
+  @if (loading()) {
+
+    <section class="message">
+
+      Cargando ticket...
+
+    </section>
+
+  }
+
+
+  <!-- ===================================================== -->
+  <!-- ERROR -->
+  <!-- ===================================================== -->
+
+  @else if (error()) {
+
+    <section class="message error">
+
+      {{ error() }}
+
+    </section>
+
+  }
+
+
+  <!-- ===================================================== -->
+  <!-- TICKET -->
+  <!-- ===================================================== -->
+
+  @else if (ticket()) {
+
+    <header class="page-header">
+
+      <div>
+
+        <span class="ticket-code">
+          {{ ticket()!.code }}
+        </span>
+
+        <h1>
+          {{ ticket()!.title }}
+        </h1>
+
+        <p>
+          Detalle de la incidencia.
+        </p>
+
+      </div>
+
+
+      <div class="header-actions">
+
+        <a
+          [routerLink]="[
+            '/tickets',
+            ticket()!.id,
+            'edit'
+          ]"
+          class="edit-button"
+        >
+          Editar ticket
+        </a>
+
+
+        <a
+          routerLink="/tickets"
+          class="back-button"
+        >
+          ← Volver a tickets
+        </a>
+
+      </div>
+
+    </header>
+
+
+    <!-- ================================================= -->
+    <!-- INFORMACIÓN PRINCIPAL -->
+    <!-- ================================================= -->
+
+    <section class="ticket-card">
+
+
+      <!-- =============================================== -->
+      <!-- CABECERA DEL TICKET -->
+      <!-- =============================================== -->
+
+      <div class="ticket-header">
+
+        <div>
+
+          <span class="ticket-code">
+            {{ ticket()!.code }}
+          </span>
+
+          <h2>
+            {{ ticket()!.title }}
+          </h2>
+
+        </div>
+
+
+        <div class="badges">
+
+          <span
+            class="badge priority-{{ ticket()!.priority }}"
+          >
+            {{ ticket()!.priority }}
+          </span>
+
+
+          <span
+            class="badge status-{{ ticket()!.status }}"
+          >
+            {{ ticket()!.status }}
+          </span>
+
+        </div>
+
+      </div>
+
+
+      <!-- =============================================== -->
+      <!-- DESCRIPCIÓN -->
+      <!-- =============================================== -->
+
+      <div class="ticket-section">
+
+        <h3>
+          Descripción
+        </h3>
+
+        <p>
+          {{ ticket()!.description }}
+        </p>
+
+      </div>
+
+
+      <!-- =============================================== -->
+      <!-- DATOS -->
+      <!-- =============================================== -->
+
+      <div class="details-grid">
+
+
+        <div class="detail-item">
+
+          <span>
+            Categoría
+          </span>
+
+          <strong>
+            {{
+              ticket()!.category?.name
+              || 'Sin categoría'
+            }}
+          </strong>
+
+        </div>
+
+
+        <div class="detail-item">
+
+          <span>
+            Creado por
+          </span>
+
+          <strong>
+            {{
+              ticket()!.creator?.name
+              || 'Desconocido'
+            }}
+          </strong>
+
+        </div>
+
+
+        <div class="detail-item">
+
+          <span>
+            Técnico asignado
+          </span>
+
+          <strong>
+
+            {{
+              ticket()!.assigned_technician?.name
+              || 'Sin asignar'
+            }}
+
+          </strong>
+
+        </div>
+
+
+        <div class="detail-item">
+
+          <span>
+            Activo
+          </span>
+
+          <strong>
+            {{
+              ticket()!.asset?.hostname
+              || 'Sin activo'
+            }}
+          </strong>
+
+        </div>
+
+
+        <div class="detail-item">
+
+          <span>
+            Creado
+          </span>
+
+          <strong>
+            {{
+              ticket()!.created_at
+                | date:'dd/MM/yyyy HH:mm'
+            }}
+          </strong>
+
+        </div>
+
+
+        <div class="detail-item">
+
+          <span>
+            Última actualización
+          </span>
+
+          <strong>
+            {{
+              ticket()!.updated_at
+                | date:'dd/MM/yyyy HH:mm'
+            }}
+          </strong>
+
+        </div>
+
+      </div>
+
+
+      <!-- =============================================== -->
+      <!-- ACTIVO -->
+      <!-- =============================================== -->
+
+      @if (ticket()!.asset) {
+
+        <div class="asset-section">
+
+          <h3>
+            Información del activo
+          </h3>
+
+
+          <div class="asset-grid">
+
+
+            <div>
+
+              <span>
+                Código
+              </span>
+
+              <strong>
+                {{ ticket()!.asset!.asset_code }}
+              </strong>
+
+            </div>
+
+
+            <div>
+
+              <span>
+                Hostname
+              </span>
+
+              <strong>
+                {{ ticket()!.asset!.hostname }}
+              </strong>
+
+            </div>
+
+
+            <div>
+
+              <span>
+                Tipo
+              </span>
+
+              <strong>
+                {{ ticket()!.asset!.type }}
+              </strong>
+
+            </div>
+
+
+            <div>
+
+              <span>
+                Marca
+              </span>
+
+              <strong>
+                {{ ticket()!.asset!.brand }}
+              </strong>
+
+            </div>
+
+
+            <div>
+
+              <span>
+                Modelo
+              </span>
+
+              <strong>
+                {{ ticket()!.asset!.model }}
+              </strong>
+
+            </div>
+
+
+            <div>
+
+              <span>
+                Sistema operativo
+              </span>
+
+              <strong>
+                {{
+                  ticket()!.asset!.operating_system
+                  || 'No indicado'
+                }}
+              </strong>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      }
+
+    </section>
+
+
+    <!-- ================================================= -->
+    <!-- COMENTARIOS -->
+    <!-- ================================================= -->
+
+    <section class="comments-card">
+
+      <div class="section-header">
+
+        <div>
+
+          <h2>
+            Comentarios
+          </h2>
+
+          <p>
+            Conversación relacionada con la incidencia.
+          </p>
+
+        </div>
+
+
+        <span class="section-count">
+
+          {{
+            ticket()!.comments?.length || 0
+          }}
+
+        </span>
+
+      </div>
+
+
+      <!-- =============================================== -->
+      <!-- LISTA DE COMENTARIOS -->
+      <!-- =============================================== -->
+
+      <div class="comments-list">
+
+        @if (
+          !ticket()!.comments ||
+          ticket()!.comments!.length === 0
+        ) {
+
+          <div class="empty-state">
+
+            Todavía no hay comentarios.
+
+          </div>
+
+        } @else {
+
+          @for (
+            comment of ticket()!.comments;
+            track comment.id
+          ) {
+
+            <article
+              class="comment"
+              [class.internal-comment]="comment.internal"
+            >
+
+              <div class="comment-header">
+
+                <div>
+
+                  <strong>
+                    {{
+                      comment.user?.name
+                      || 'Usuario'
+                    }}
+                  </strong>
+
+                  @if (comment.internal) {
+
+                    <span class="internal-badge">
+                      Interno
+                    </span>
+
+                  } @else {
+
+                    <span class="public-badge">
+                      Público
+                    </span>
+
+                  }
+
+                </div>
+
+
+                <time>
+
+                  {{
+                    comment.created_at
+                      | date:'dd/MM/yyyy HH:mm'
+                  }}
+
+                </time>
+
+              </div>
+
+
+              <p class="comment-message">
+
+                {{ comment.message }}
+
+              </p>
+
+            </article>
+
+          }
+
+        }
+
+      </div>
+
+
+      <!-- =============================================== -->
+      <!-- NUEVO COMENTARIO -->
+      <!-- =============================================== -->
+
+      <div class="comment-form">
+
+        <h3>
+          Añadir comentario
+        </h3>
+
+
+        <textarea
+          name="comment"
+          rows="5"
+
+          [ngModel]="commentMessage()"
+
+          (ngModelChange)="commentMessage.set($event)"
+
+          placeholder="Escribe un comentario..."
+          [disabled]="commentSaving()"
+        ></textarea>
+
+
+        @if (
+          canCreateInternalComment()
+        ) {
+
+          <label class="internal-option">
+
+            <input
+              type="checkbox"
+              name="internal"
+
+              [ngModel]="commentInternal()"
+
+              (ngModelChange)="commentInternal.set($event)"
+
+              [disabled]="commentSaving()"
+            >
+
+            <span>
+              Comentario interno
+            </span>
+
+          </label>
+
+        }
+
+
+        @if (commentError()) {
+
+          <div class="form-error">
+
+            {{ commentError() }}
+
+          </div>
+
+        }
+
+
+        @if (commentSuccess()) {
+
+          <div class="form-success">
+
+            {{ commentSuccess() }}
+
+          </div>
+
+        }
+
+
+        <div class="comment-actions">
+
+          <button
+            type="button"
+            class="comment-button"
+
+            (click)="addComment()"
+
+            [disabled]="
+              commentSaving() ||
+              !commentMessage().trim()
+            "
+          >
+
+            @if (commentSaving()) {
+
+              Enviando...
+
+            } @else {
+
+              Añadir comentario
+
+            }
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================================================= -->
+    <!-- HISTORIAL -->
+    <!-- ================================================= -->
+
+    <section class="history-card">
+
+      <div class="section-header">
+
+        <div>
+
+          <h2>
+            Historial
+          </h2>
+
+          <p>
+            Registro de cambios realizados en el ticket.
+          </p>
+
+        </div>
+
+
+        <span class="section-count">
+
+          {{
+            ticket()!.history?.length || 0
+          }}
+
+        </span>
+
+      </div>
+
+
+      <div class="history-list">
+
+        @if (
+          !ticket()!.history ||
+          ticket()!.history!.length === 0
+        ) {
+
+          <div class="empty-state">
+
+            No hay cambios registrados.
+
+          </div>
+
+        } @else {
+
+          @for (
+            item of ticket()!.history;
+            track item.id
+          ) {
+
+            <article class="history-item">
+
+              <div class="history-dot"></div>
+
+
+              <div class="history-content">
+
+                <div class="history-top">
+
+                  <strong>
+
+                    {{
+                      formatHistoryAction(item)
+                    }}
+
+                  </strong>
+
+
+                  <time>
+
+                    {{
+                      item.created_at
+                        | date:'dd/MM/yyyy HH:mm'
+                    }}
+
+                  </time>
+
+                </div>
+
+
+                <div class="history-user">
+
+                  {{
+                    item.user?.name
+                    || 'Sistema'
+                  }}
+
+                </div>
+
+
+                @if (
+                  item.field
+                ) {
+
+                  <div class="history-change">
+
+                    <span>
+
+                      {{
+                        formatHistoryField(
+                          item.field
+                        )
+                      }}
+
+                    </span>
+
+
+                    @if (
+                      item.old_value !== null
+                    ) {
+
+                      <strong>
+
+                        {{
+                          formatHistoryValue(
+                            item.field,
+                            item.old_value
+                          )
+                        }}
+
+                      </strong>
+
+                    }
+
+
+                    @if (
+                      item.new_value !== null
+                    ) {
+
+                      <span class="arrow">
+                        →
+                      </span>
+
+                      <strong class="new-value">
+
+                        {{
+                          formatHistoryValue(
+                            item.field,
+                            item.new_value
+                          )
+                        }}
+
+                      </strong>
+
+                    }
+
+                  </div>
+
+                }
+
+              </div>
+
+            </article>
+
+          }
+
+        }
+
+      </div>
+
+    </section>
+
+  }
+
+</main>

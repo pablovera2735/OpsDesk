@@ -8,20 +8,30 @@ import {
 import { FormsModule } from '@angular/forms';
 
 import {
+  HttpErrorResponse
+} from '@angular/common/http';
+
+import {
   Router,
   RouterLink
 } from '@angular/router';
 
 import {
+  AuthService,
+  User
+} from '../../../core/services/auth.service';
+
+import {
   TicketService,
   TicketCategory,
-  TicketAsset,
+  Ticket,
   CreateTicketPayload
 } from '../../../core/services/ticket.service';
 
 
 @Component({
   selector: 'app-ticket-create',
+
   standalone: true,
 
   imports: [
@@ -30,117 +40,262 @@ import {
   ],
 
   templateUrl: './ticket-create.html',
+
   styleUrl: './ticket-create.scss'
 })
-export class TicketCreateComponent implements OnInit {
+export class TicketCreateComponent
+  implements OnInit {
 
-  private readonly router = inject(Router);
+
+  /*
+   * =========================================================
+   * SERVICIOS
+   * =========================================================
+   */
+
+  private readonly router =
+    inject(Router);
 
   private readonly ticketService =
     inject(TicketService);
 
+  private readonly authService =
+    inject(AuthService);
 
-  readonly title = signal('');
 
-  readonly description = signal('');
+  /*
+   * =========================================================
+   * FORMULARIO
+   * =========================================================
+   */
+
+  readonly title =
+    signal('');
+
+  readonly description =
+    signal('');
 
   readonly priority =
-    signal<CreateTicketPayload['priority']>('medium');
+    signal<CreateTicketPayload['priority']>(
+      'medium'
+    );
 
-  readonly categoryId = signal('');
+  readonly categoryId =
+    signal('');
 
-  readonly assetId = signal('');
+  readonly assetId =
+    signal('');
 
+
+  /*
+   * =========================================================
+   * CATEGORÍAS
+   * =========================================================
+   *
+   * De momento usamos las categorías que ya sabemos
+   * que existen en la aplicación.
+   */
 
   readonly categories =
-    signal<TicketCategory[]>([]);
+    signal<TicketCategory[]>([
 
-  readonly assets =
-    signal<TicketAsset[]>([]);
+      {
+        id: 1,
+        name: 'Hardware',
+        slug: 'hardware',
+        description: 'Problemas de hardware',
+        active: true
+      },
+
+      {
+        id: 2,
+        name: 'Impresoras',
+        slug: 'impresoras',
+        description: 'Problemas con impresoras',
+        active: true
+      },
+
+      {
+        id: 3,
+        name: 'Redes',
+        slug: 'redes',
+        description: 'Problemas de red',
+        active: true
+      },
+
+      {
+        id: 4,
+        name: 'Software',
+        slug: 'software',
+        description: 'Problemas de software',
+        active: true
+      },
+
+      {
+        id: 5,
+        name: 'Accesos',
+        slug: 'accesos',
+        description: 'Problemas de acceso',
+        active: true
+      }
+
+    ]);
 
 
-  readonly loadingOptions =
+  /*
+   * =========================================================
+   * USUARIO ACTUAL
+   * =========================================================
+   */
+
+  readonly currentUser =
+    signal<User | null>(null);
+
+
+  /*
+   * =========================================================
+   * ASIGNACIÓN
+   * =========================================================
+   *
+   * false = sin asignar
+   *
+   * true = asignarme a mí
+   */
+
+  readonly assignedToMe =
+    signal(false);
+
+
+  /*
+   * =========================================================
+   * ESTADOS
+   * =========================================================
+   */
+
+  readonly loadingUser =
     signal(true);
-
-  readonly error =
-    signal('');
 
   readonly saving =
     signal(false);
 
+  readonly error =
+    signal('');
+
+
+  /*
+   * =========================================================
+   * INIT
+   * =========================================================
+   */
 
   ngOnInit(): void {
 
-    this.loadOptions();
+    this.loadCurrentUser();
 
   }
 
 
-  loadOptions(): void {
+  /*
+   * =========================================================
+   * CARGAR USUARIO AUTENTICADO
+   * =========================================================
+   *
+   * GET /api/me
+   */
 
-    this.loadingOptions.set(true);
+  private loadCurrentUser(): void {
 
-    this.error.set('');
-
-
-    this.ticketService
-      .getCategories()
-      .subscribe({
-
-        next: (categories) => {
-
-          this.categories.set(categories);
-
-          this.loadingOptions.set(false);
-
-        },
-
-        error: (error) => {
-
-          console.error(
-            'Error cargando categorías:',
-            error
-          );
-
-          this.error.set(
-            'No se pudieron cargar las categorías.'
-          );
-
-          this.loadingOptions.set(false);
-
-        }
-
-      });
+    this.loadingUser.set(true);
 
 
-    this.ticketService
-      .getAssets()
-      .subscribe({
+    this.authService.me().subscribe({
 
-        next: (assets) => {
+      next: (
+        response: { data: User }
+      ) => {
 
-          this.assets.set(assets);
+        console.log(
+          'Usuario actual:',
+          response.data
+        );
 
-        },
 
-        error: (error) => {
+        this.currentUser.set(
+          response.data
+        );
 
-          console.error(
-            'Error cargando activos:',
-            error
-          );
 
-        }
+        this.loadingUser.set(false);
 
-      });
+      },
+
+
+      error: (
+        error: HttpErrorResponse
+      ) => {
+
+        console.error(
+          'Error obteniendo usuario:',
+          error
+        );
+
+
+        this.currentUser.set(
+          null
+        );
+
+
+        this.loadingUser.set(false);
+
+      }
+
+    });
 
   }
 
+
+  /*
+   * =========================================================
+   * CAMBIAR ASIGNACIÓN
+   * =========================================================
+   */
+
+  changeAssignment(
+    value: string
+  ): void {
+
+    this.assignedToMe.set(
+      value === 'me'
+    );
+
+  }
+
+
+  /*
+   * =========================================================
+   * CREAR TICKET
+   * =========================================================
+   */
 
   createTicket(): void {
 
     this.error.set('');
 
+
+    /*
+     * Evitar doble envío
+     */
+
+    if (this.saving()) {
+
+      return;
+
+    }
+
+
+    /*
+     * Obtener valores
+     */
 
     const title =
       this.title().trim();
@@ -148,6 +303,12 @@ export class TicketCreateComponent implements OnInit {
     const description =
       this.description().trim();
 
+
+    /*
+     * =====================================================
+     * VALIDACIÓN DEL TÍTULO
+     * =====================================================
+     */
 
     if (!title) {
 
@@ -160,6 +321,12 @@ export class TicketCreateComponent implements OnInit {
     }
 
 
+    /*
+     * =====================================================
+     * VALIDACIÓN DE DESCRIPCIÓN
+     * =====================================================
+     */
+
     if (!description) {
 
       this.error.set(
@@ -170,6 +337,12 @@ export class TicketCreateComponent implements OnInit {
 
     }
 
+
+    /*
+     * =====================================================
+     * VALIDACIÓN DE CATEGORÍA
+     * =====================================================
+     */
 
     if (!this.categoryId()) {
 
@@ -182,12 +355,57 @@ export class TicketCreateComponent implements OnInit {
     }
 
 
-    if (this.saving()) {
+    /*
+     * =====================================================
+     * VALIDACIÓN DE ASIGNACIÓN
+     * =====================================================
+     *
+     * Si el usuario ha elegido "Asignarme a mí",
+     * necesitamos conocer su ID.
+     */
+
+    if (
+      this.assignedToMe() &&
+      !this.currentUser()
+    ) {
+
+      this.error.set(
+        'No se ha podido identificar al usuario actual.'
+      );
+
       return;
+
     }
 
 
-    const payload: CreateTicketPayload = {
+    /*
+     * =====================================================
+     * ID DEL TÉCNICO
+     * =====================================================
+     *
+     * Sin asignar:
+     *
+     * null
+     *
+     * Asignarme:
+     *
+     * ID del usuario autenticado
+     */
+
+    const assignedTo =
+      this.assignedToMe()
+        ? this.currentUser()!.id
+        : null;
+
+
+    /*
+     * =====================================================
+     * PAYLOAD
+     * =====================================================
+     */
+
+    const payload:
+      CreateTicketPayload = {
 
       title,
 
@@ -199,6 +417,9 @@ export class TicketCreateComponent implements OnInit {
       category_id:
         Number(this.categoryId()),
 
+      assigned_to:
+        assignedTo,
+
       asset_id:
         this.assetId()
           ? Number(this.assetId())
@@ -208,19 +429,39 @@ export class TicketCreateComponent implements OnInit {
 
 
     console.log(
-      'Creando ticket:',
+      'Payload nuevo ticket:',
       payload
     );
 
 
+    /*
+     * =====================================================
+     * GUARDANDO
+     * =====================================================
+     */
+
     this.saving.set(true);
 
+
+    /*
+     * =====================================================
+     * POST
+     * =====================================================
+     */
 
     this.ticketService
       .createTicket(payload)
       .subscribe({
 
-        next: (response) => {
+        /*
+         * ===============================================
+         * ÉXITO
+         * ===============================================
+         */
+
+        next: (
+          response: { data: Ticket }
+        ) => {
 
           console.log(
             'Ticket creado correctamente:',
@@ -231,7 +472,13 @@ export class TicketCreateComponent implements OnInit {
           this.saving.set(false);
 
 
-          if (response.data?.id) {
+          /*
+           * Ir al detalle del ticket creado
+           */
+
+          if (
+            response.data?.id
+          ) {
 
             this.router.navigate([
               '/tickets',
@@ -243,6 +490,10 @@ export class TicketCreateComponent implements OnInit {
           }
 
 
+          /*
+           * Fallback
+           */
+
           this.router.navigate([
             '/tickets'
           ]);
@@ -250,7 +501,15 @@ export class TicketCreateComponent implements OnInit {
         },
 
 
-        error: (error) => {
+        /*
+         * ===============================================
+         * ERROR
+         * ===============================================
+         */
+
+        error: (
+          error: HttpErrorResponse
+        ) => {
 
           console.error(
             'Error creando ticket:',
@@ -261,7 +520,13 @@ export class TicketCreateComponent implements OnInit {
           this.saving.set(false);
 
 
-          if (error.status === 422) {
+          /*
+           * Error de validación Laravel
+           */
+
+          if (
+            error.status === 422
+          ) {
 
             this.error.set(
               error.error?.message ||
@@ -273,7 +538,13 @@ export class TicketCreateComponent implements OnInit {
           }
 
 
-          if (error.status === 401) {
+          /*
+           * No autenticado
+           */
+
+          if (
+            error.status === 401
+          ) {
 
             this.error.set(
               'Tu sesión ha caducado. Inicia sesión de nuevo.'
@@ -283,6 +554,27 @@ export class TicketCreateComponent implements OnInit {
 
           }
 
+
+          /*
+           * Error de servidor
+           */
+
+          if (
+            error.status >= 500
+          ) {
+
+            this.error.set(
+              'Error del servidor. Inténtalo de nuevo.'
+            );
+
+            return;
+
+          }
+
+
+          /*
+           * Error general
+           */
 
           this.error.set(
             'No se pudo crear el ticket. Inténtalo de nuevo.'
@@ -294,6 +586,12 @@ export class TicketCreateComponent implements OnInit {
 
   }
 
+
+  /*
+   * =========================================================
+   * CANCELAR
+   * =========================================================
+   */
 
   cancel(): void {
 
